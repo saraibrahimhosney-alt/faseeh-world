@@ -1,0 +1,42 @@
+name: Build Faseeh World Android APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build-android-apk:
+    name: Build Faseeh APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Create Android platform files
+        run: |
+          if [ ! -d "android" ]; then
+            flutter create --platforms=android --project-name=faseeh_world .
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Upload Faseeh World APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Faseeh-World-Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
