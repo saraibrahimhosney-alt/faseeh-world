@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 void main() {
   runApp(const FaseehWorldApp());
@@ -8,7 +9,23 @@ class WordData {
   final String word;
   final String meaning;
   final String example;
-  const WordData(this.word, this.meaning, this.example);
+  final String audioKey;
+  const WordData(this.word, this.meaning, this.example, this.audioKey);
+}
+
+class SongData {
+  final String title;
+  final String lyrics;
+  final String audioKey;
+  final String emoji;
+  final Color color;
+  const SongData({
+    required this.title,
+    required this.lyrics,
+    required this.audioKey,
+    required this.emoji,
+    required this.color,
+  });
 }
 
 class EpisodeData {
@@ -31,11 +48,13 @@ class QuizData {
   final List options;
   final int correct;
   final String explanation;
+  final String audioKey;
   const QuizData({
     required this.question,
     required this.options,
     required this.correct,
     required this.explanation,
+    required this.audioKey,
   });
 }
 
@@ -43,10 +62,12 @@ class StoryData {
   final String title;
   final List pages;
   final String moral;
+  final String audioKey;
   const StoryData({
     required this.title,
     required this.pages,
     required this.moral,
+    required this.audioKey,
   });
 }
 
@@ -84,10 +105,14 @@ class FaseehMainScreen extends StatefulWidget {
 }
 
 class _FaseehMainScreenState extends State {
+  final AudioPlayer _audioPlayer = AudioPlayer();
   int _currentIndex = 0;
-  int _stars = 25;
+  int _stars = 30;
   int _selectedAgeGroup = 0;
-  String _speechText = 'أهلاً بك يا صديقي في عالم فصيح! اضغط على أي كلمة أو حلقة أو لعبة لنبدأ المغامرة معاً!';
+  bool _owlBig = false;
+  String _owlEmoji = '🦉';
+  String _lastAudioKey = 'welcome';
+  String _speechText = 'أَهْلاً بِكَ يَا صَدِيقِي البَطَلَ فِي عَالَمِ فَصِيح! اضْغَطْ عَلَى أَيِّ بِطَاقَةٍ أَوْ أُنْشُودَةٍ لِتَسْمَعَ صَوْتِي!';
 
   final List _ageGroups = [
     '4-6 سنوات (براعم)',
@@ -95,17 +120,41 @@ class _FaseehMainScreenState extends State {
     '10-12 سنة (أدباء)',
   ];
 
+  final List _songs = const [
+    SongData(
+      title: 'أُنْشُودَةُ حُرُوفِ الهِجَاءِ',
+      lyrics: 'أَلِفٌ أَرْنَبْ، يَجْرِي يَلْعَبْ، يَأْكُلُ جَزَراً كَيْ لَا يَتْعَبْ!\nبَاءٌ بَطَّةْ، نَطَّتْ نَطَّةْ، وَقَعَتْ ضَحِكَتْ مِنْهَا القِطَّةْ!\nتَاءٌ تَاجْ، فَوْقَ الرَّأْسْ، فِيهِ الذَّهَبُ وَفِيهِ المَاسْ!',
+      audioKey: 'song_alphabet',
+      emoji: '🐰',
+      color: Color(0xFFEC4899),
+    ),
+    SongData(
+      title: 'أُنْشُودَةُ شَمْسِ الصَّبَاحِ',
+      lyrics: 'أَشْرَقَتِ الشَّمْسُ الذَّهَبِيَّةْ، وَتَغَنَّتْ طَيْرُ الحُرِّيَّةْ!\nهَيَّا نَتَعَلَّمْ يَا أَطْفَالْ، لُغَتِي الفُصْحَى أَجْمَلُ حَالْ!',
+      audioKey: 'song_morning',
+      emoji: '☀️',
+      color: Color(0xFFF59E0B),
+    ),
+    SongData(
+      title: 'أُنْشُودَةُ الأَرْقَامِ الفَصِيحَةِ',
+      lyrics: 'وَاحِدٌ اثْنَانِ ثَلَاثَةْ، نَتَعَلَّمُ بِذَكَاءٍ وَحَمَاسَةْ!\nأَرْبَعَةٌ خَمْسَةٌ سِتَّةْ، نَقْرَأُ فِي البُسْتَانِ القِصَّةْ!',
+      audioKey: 'song_numbers',
+      emoji: '🔢',
+      color: Color(0xFF8B5CF6),
+    ),
+  ];
+
   final List _episodes = const [
     EpisodeData(
       title: 'الحلقة 1: سرّ الغابة المضيئة',
       subtitle: 'مغامرة البحث عن الكنز اللغوي',
       duration: '12 دقيقة',
-      description: 'يرافقنا البوم فصيح في رحلة ممتعة داخل الغابة المضيئة لنتعلم أسماء الطبيعة والأفعال العربية الفصيحة.',
+      description: 'يرافقنا البوم فصيح في رحلة ممتعة داخل الغابة المضيئة لنتعلم أسماء الطبيعة والأفعال العربية الفصيحة بالصوت الطبيعي.',
       words: [
-        WordData('وَهَج', 'ضوء ساطع وجميل', 'رأى فصيحُ وَهَجَ النجومِ في السماء.'),
-        WordData('غَدِير', 'نهر صغير عذب الماء', 'شرب الأرنبُ من ماءِ الغَدِيرِ الصافي.'),
-        WordData('حَفِيف', 'صوت أوراق الشجر', 'سمعنا حَفِيفَ الأشجارِ مع نسيم الصباح.'),
-        WordData('تَآزُر', 'تعاون واتحاد القوة', 'بالتَّآزُرِ نجح الأصدقاءُ في عبور الجسر.'),
+        WordData('وَهَجٌ', 'ضوء ساطع وجميل', 'رَأَى فَصِيحٌ وَهَجَ النُّجُومِ فِي السَّمَاءِ.', 'word_wahaj'),
+        WordData('غَدِيرٌ', 'نهر صغير عذب الماء', 'شَرِبَ الأَرْنَبُ مِنْ مَاءِ الغَدِيرِ الصَّافِي.', 'word_ghadeer'),
+        WordData('حَفِيفٌ', 'صوت أوراق الشجر', 'سَمِعْنَا حَفِيفَ الأَشْجَارِ مَعَ نَسِيمِ الصَّبَاحِ.', 'word_hafeef'),
+        WordData('تَآزُرٌ', 'تعاون واتحاد القوة', 'بِالتَّآزُرِ نَجَحَ الأَصْدِقَاءُ فِي عُبُورِ الجِسْرِ.', 'word_taazur'),
       ],
     ),
     EpisodeData(
@@ -114,10 +163,9 @@ class _FaseehMainScreenState extends State {
       duration: '15 دقيقة',
       description: 'تحدٍّ شيّق لاستعادة الحروف المفقودة من مكتبة المدينة القديمة وتكوين جمل عربية بليغة.',
       words: [
-        WordData('فَصَاحَة', 'بيان ووضوح في الكلام', 'يتحدث البطلُ بِفَصَاحَةٍ وثقةٍ أمام الجميع.'),
-        WordData('مِحْبَرَة', 'وعاء يوضع فيه الحبر للكتابة', 'كتب الجدُّ الحكايةَ بقلمٍ من المِحْبَرَةِ الذهبية.'),
-        WordData('شَغَف', 'حب شديد وإقبال على التعلم', 'يقرأ الطفلُ القصصَ بِشَغَفٍ كبيرٍ كل مساء.'),
-        WordData('إِثْرَاء', 'زيادة وتنمية المعرفة', 'تهدف القراءةُ إلى إِثْرَاءِ حصيلتنا اللغوية.'),
+        WordData('فَصَاحَةٌ', 'بيان ووضوح في الكلام', 'يَتَحَدَّثُ البَطَلُ بِفَصَاحَةٍ وَثِقَةٍ أَمَامَ الجَمِيعِ.', 'word_fasaha'),
+        WordData('مِحْبَرَةٌ', 'وعاء يوضع فيه الحبر للكتابة', 'كَتَبَ الجَدُّ الحِكَايَةَ بِقَلَمٍ مِنَ المِحْبَرَةِ الذَّهَبِيَّةِ.', 'word_mihbara'),
+        WordData('شَغَفٌ', 'حب شديد وإقبال على التعلم', 'يَقْرَأُ الطِّفْلُ القِصَصَ بِشَغَفٍ كَبِيرٍ كُلَّ مَسَاءٍ.', 'word_shaghaf'),
       ],
     ),
     EpisodeData(
@@ -126,94 +174,131 @@ class _FaseehMainScreenState extends State {
       duration: '14 دقيقة',
       description: 'ننطلق بمركبة فصيح الفضائية لاكتشاف أسماء النجوم والمجرات وتاريخ العلماء العرب.',
       words: [
-        WordData('مَجَرَّة', 'تجمع هائل من النجوم والكواكب', 'تسبح مجموعتنا الشمسية في مَجَرَّةِ درب التبانة.'),
-        WordData('مِجْهَر', 'آلة لتكبير الأشياء الدقيقة', 'فحص العالمُ العيناتِ باستخدام المِجْهَر.'),
-        WordData('مِسْبَار', 'مركبة فضائية لاستكشاف الكواكب', 'هبط المِسْبَارُ على سطح كوكب المريخ بنجاح.'),
+        WordData('مَجَرَّةٌ', 'تجمع هائل من النجوم والكواكب', 'تَسْبَحُ الأَرْضُ فِي مَجَرَّةِ دَرْبِ التَّبَّانَةِ.', 'word_majarra'),
+        WordData('مِسْبَارٌ', 'مركبة فضائية لاستكشاف الكواكب', 'هَبَطَ المِسْبَارُ عَلَى سَطْحِ كَوْكَبِ المِرِّيخِ بِنَجَاحٍ.', 'word_misbar'),
       ],
     ),
   ];
 
   final List _quizzes = const [
     QuizData(
-      question: 'ما المعنى الدقيق لكلمة «غَدِير» في لغتنا الجميلة؟',
+      question: 'مَا المَعْنَى الدَّقِيقُ لِكَلِمَةِ «غَدِير» فِي لُغَتِنَا الجَمِيلَةِ؟',
       options: [
-        'مجرى ماء عذب وصغير 💧',
-        'جبل شاهق الارتفاع ⛰️',
-        'رياح قوية وعاصفة 🌪️',
+        'مَجْرَى مَاءٍ عَذْبٍ وَصَغِيرٍ 💧',
+        'جَبَلٌ شَاهِقُ الارْتِفَاعِ ⛰️',
+        'رِيَاحٌ قَوِيَّةٌ وَعَاصِفَةٌ 🌪️',
       ],
       correct: 0,
-      explanation: 'الغدير هو قطعة ماء يتركها السيل أو النهر الصغير العذب!',
+      explanation: 'الغَدِيرُ هُوَ نَهْرٌ صَغِيرٌ عَذْبُ المَاءِ!',
+      audioKey: 'quiz_1',
     ),
     QuizData(
-      question: 'أيّ جملة من الجمل التالية مكتوبة بالعربية الفصحى السليمة؟',
+      question: 'أَيُّ جُمْلَةٍ مِنَ الجُمَلِ التَّالِيَةِ مَكْتُوبَةٌ بِالعَرَبِيَّةِ الفُصْحَى السَّلِيمَةِ؟',
       options: [
         'الولد راح عالمدرسة بدري',
         'ذَهَبَ الطِّفْلُ إِلَى المَدْرَسَةِ مُبَكِّراً 🌟',
         'أيمتى رح نبلش اللعب؟',
       ],
       correct: 1,
-      explanation: 'أحسنت! «ذَهَبَ الطِّفْلُ إِلَى المَدْرَسَةِ مُبَكِّراً» جملة فصيحة سليمة.',
+      explanation: 'أَحْسَنْتَ! «ذَهَبَ الطِّفْلُ إِلَى المَدْرَسَةِ مُبَكِّراً» جُمْلَةٌ فَصِيحَةٌ سَلِيمَةٌ.',
+      audioKey: 'quiz_2',
     ),
     QuizData(
-      question: 'ماذا نسمّي صوت حَرَكة أوراق الشجر عندما يمرّ بها الهواء؟',
+      question: 'مَاذَا نُسَمِّي صَوْتَ حَرَكَةِ أَوْرَاقِ الشَّجَرِ عِنْدَمَا يَمُرُّ بِهَا الهَوَاءُ؟',
       options: [
-        'زئير',
-        'خرير',
-        'حَفِيف 🍃',
+        'زَئِيرٌ',
+        'خَرِيرٌ',
+        'حَفِيفٌ 🍃',
       ],
       correct: 2,
-      explanation: 'حفيف هو صوت أوراق الشجر، بينما الخرير للماء والزئير للأسد!',
+      explanation: 'حَفِيفٌ هُوَ صَوْتُ أَوْرَاقِ الشَّجَرِ!',
+      audioKey: 'quiz_3',
     ),
     QuizData(
-      question: 'ما ضدّ كلمة «شُجَاع» في اللغة العربية؟',
+      question: 'مَا ضِدُّ كَلِمَةِ «شُجَاع» فِي اللُّغَةِ العَرَبِيَّةِ؟',
       options: [
-        'كَرِيم',
-        'جَبَان',
-        'سَرِيع',
+        'كَرِيمٌ',
+        'جَبَانٌ',
+        'سَرِيعٌ',
       ],
       correct: 1,
-      explanation: 'ضدّ شجاع هو جبان، والشجاعة صفة جميلة يتحلى بها أبطال فصيح!',
+      explanation: 'ضِدُّ شُجَاعٍ هُوَ جَبَانٌ، وَالشَّجَاعَةُ صِفَةٌ جَمِيلَةٌ!',
+      audioKey: 'quiz_4',
     ),
   ];
 
   final List _stories = const [
     StoryData(
-      title: 'الأرنب الصغير وسر الجزرة الذهبية',
+      title: 'الأَرْنَبُ الصَّغِيرُ وَسِرُّ الجَزَرَةِ الذَّهَبِيَّةِ',
       pages: [
-        'في صباحٍ مُشْرِقٍ، خَرَجَ الأرنبُ «فَصِيح» يَبْحَثُ عن طعامٍ في الحَقْلِ الأَخْضَرِ الوَاسِع.',
-        'وَجَدَ فصيحُ جَزَرَةً كَبِيرَةً تَلْمَعُ تحتَ أَشِعَّةِ الشَّمْسِ، لكنَّها كانتْ عَالِقَةً في التُّرْبَة.',
-        'نَادَى فصيحُ أَصْدِقَاءَهُ السِّنْجَابَ وَالسُّلَحْفَاةَ، وَقَالَ بِلُطْفٍ: «هَلْ تُسَاعِدُونَنِي يَا أَصْدِقَائِي؟».',
-        'تَعَاوَنَ الجَمِيعُ بِهِمَّةٍ وَنَشَاطٍ حتَّى أَخْرَجُوا الجَزَرَةَ، وَتَقَاسَمُوهَا بِسَعَادَةٍ وَمَحَبَّة!',
+        'فِي صَبَاحٍ مُشْرِقٍ، خَرَجَ الأَرْنَبُ «فَصِيحٌ» يَبْحَثُ عَنْ طَعَامٍ فِي الحَقْلِ الأَخْضَرِ الوَاسِعِ.',
+        'وَجَدَ فَصِيحٌ جَزَرَةً كَبِيرَةً تَلْمَعُ تَحْتَ أَشِعَّةِ الشَّمْسِ، لَكِنَّهَا كَانَتْ عَالِقَةً فِي التُّرْبَةِ.',
+        'نَادَى فَصِيحٌ أَصْدِقَاءَهُ السِّنْجَابَ وَالسُّلَحْفَاةَ، وَقَالَ بِلُطْفٍ: «هَلْ تُسَاعِدُونَنِي يَا أَصْدِقَائِي؟».',
+        'تَعَاوَنَ الجَمِيعُ بِهِمَّةٍ وَنَشَاطٍ حَتَّى أَخْرَجُوا الجَزَرَةَ، وَتَقَاسَمُوهَا بِسَعَادَةٍ وَمَحَبَّةٍ!',
       ],
-      moral: 'الحكمة المستفادة: بالتعاون والكلمة الطيبة ننجز أصعب المهام.',
+      moral: 'الحِكْمَةُ المُسْتَفَادَةُ: بِالتَّعَاوُنِ وَالكَلِمَةِ الطَّيِّبَةِ نُنْجِزُ أَصْعَبَ المَهَامِّ.',
+      audioKey: 'story_rabbit',
     ),
     StoryData(
-      title: 'البوم الحكيم وطائر البلبل المغرّد',
+      title: 'البُومُ الحَكِيمُ وَطَائِرُ البُلْبُلِ المُغَرِّدِ',
       pages: [
-        'كانَ البُلْبُلُ الصَّغِيرُ يَخْجَلُ من الغِنَاءِ أَمَامَ طُيُورِ الغَابَةِ خَوْفاً من الخَطَأ.',
-        'اقْتَرَبَ منهُ البُومُ الحَكِيمُ وَقَالَ لَهُ: «صَوْتُكَ جَمِيلٌ يَا بُنَيَّ، وَالتَّجْرِبَةُ هِيَ طَرِيقُ النَّجَاح!».',
-        'انْطَلَقَ البُلْبُلُ يُغَرِّدُ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ، فَصَفَّقَتْ لَهُ الطُّيُورُ بِإِعْجَابٍ شَدِيد.',
+        'كَانَ البُلْبُلُ الصَّغِيرُ يَخْجَلُ مِنَ الغِنَاءِ أَمَامَ طُيُورِ الغَابَةِ خَوْفاً مِنَ الخَطَأِ.',
+        'اقْتَرَبَ مِنْهُ البُومُ الحَكِيمُ وَقَالَ لَهُ: «صَوْتُكَ جَمِيلٌ يَا بُنَيَّ، وَالتَّجْرِبَةُ هِيَ طَرِيقُ النَّجَاحِ!».',
+        'انْطَلَقَ البُلْبُلُ يُغَرِّدُ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ، فَصَفَّقَتْ لَهُ الطُّيُورُ بِإِعْجَابٍ شَدِيدٍ.',
       ],
-      moral: 'الحكمة المستفادة: الثقة بالنفس والمحاولة المستمرة تصنع الإبداع.',
+      moral: 'الحِكْمَةُ المُسْتَفَادَةُ: الثِّقَةُ بِالنَّفْسِ وَالمُحَاوَلَةُ المُسْتَمِرَّةُ تَصْنَعُ الإِبْدَاعَ.',
+      audioKey: 'story_owl',
     ),
   ];
 
-  void _giveReward(int points, String message) {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 600), () {
+      _playAudioClip('welcome', _speechText, '🦉');
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future _playAudioClip(String audioKey, String textToShow, String emoji) async {
+    setState(() {
+      _speechText = textToShow;
+      _owlEmoji = emoji;
+      _lastAudioKey = audioKey;
+      _owlBig = true;
+    });
+    await _audioPlayer.stop();
+    await _audioPlayer.play(AssetSource('audio/$audioKey.mp3'));
+    Future.delayed(const Duration(milliseconds: 450), () {
+      if (mounted) {
+        setState(() {
+          _owlBig = false;
+        });
+      }
+    });
+  }
+
+  void _giveReward(int points, String message, String audioKey, String emoji) {
     setState(() {
       _stars += points;
-      _speechText = message;
     });
+    _playAudioClip(audioKey, message, emoji);
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: const Color(0xFF059669),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         duration: const Duration(seconds: 2),
         content: Text(
-          '🌟 أحسنت! +$points نجوم — $message',
+          '🌟 رائع يا بطل! +$points نجوم — $message',
           textDirection: TextDirection.rtl,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
       ),
     );
@@ -229,13 +314,20 @@ class _FaseehMainScreenState extends State {
         foregroundColor: Colors.white,
         title: const Row(
           children: [
-            Text('🦉 ', style: TextStyle(fontSize: 26)),
-            Text('عالم فصيح', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+            Text('🦉 ', style: TextStyle(fontSize: 28)),
+            Text('عالم فصيح', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 23)),
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'إعادة سماع الصوت',
+            onPressed: () {
+              _playAudioClip(_lastAudioKey, _speechText, '🎵');
+            },
+            icon: const Icon(Icons.volume_up_rounded, size: 28),
+          ),
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             decoration: BoxDecoration(
               color: const Color(0xFFF59E0B),
@@ -243,10 +335,10 @@ class _FaseehMainScreenState extends State {
             ),
             child: Row(
               children: [
-                const Text('⭐ ', style: TextStyle(fontSize: 16)),
+                const Text('⭐ ', style: TextStyle(fontSize: 17)),
                 Text(
                   '$_stars',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.white),
                 ),
               ],
             ),
@@ -255,53 +347,68 @@ class _FaseehMainScreenState extends State {
       ),
       body: Column(
         children: [
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFE0F2FE), Color(0xFFFEF3C7)],
+          GestureDetector(
+            onTap: () {
+              _playAudioClip(_lastAudioKey, _speechText, '🤩');
+            },
+            child: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE0F2FE), Color(0xFFFEF3C7)],
+                ),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFF38BDF8), width: 2),
               ),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFF7DD3FC), width: 1.5),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
+              child: Row(
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 350),
+                    padding: EdgeInsets.all(_owlBig ? 14 : 10),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      _owlEmoji,
+                      style: TextStyle(fontSize: _owlBig ? 42 : 34),
+                    ),
                   ),
-                  child: const Text('🦉', style: TextStyle(fontSize: 32)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'البوم فصيح يقول لك:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0369A1),
-                          fontSize: 13,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.record_voice_over_rounded, size: 16, color: Color(0xFF0369A1)),
+                            SizedBox(width: 6),
+                            Text(
+                              'فصيح يتحدث معك (اضغط للسماع):',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0369A1),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _speechText,
-                        style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
+                        const SizedBox(height: 4),
+                        Text(
+                          _speechText,
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           SingleChildScrollView(
@@ -322,9 +429,13 @@ class _FaseehMainScreenState extends State {
                       fontWeight: FontWeight.bold,
                     ),
                     onSelected: (bool _) {
+                      _playAudioClip(
+                        'welcome',
+                        'اخترت مرحلة: $groupLabel — هيا نغني ونتعلم الفصحى!',
+                        '🦉',
+                      );
                       setState(() {
                         _selectedAgeGroup = idx;
-                        _speechText = 'اخترت مستوى: $groupLabel — هيا ننطلق!';
                       });
                     },
                   ),
@@ -332,7 +443,7 @@ class _FaseehMainScreenState extends State {
               }),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Expanded(
             child: IndexedStack(
               index: _currentIndex,
@@ -355,10 +466,10 @@ class _FaseehMainScreenState extends State {
           });
         },
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_rounded), label: 'الرئيسية'),
+          NavigationDestination(icon: Icon(Icons.music_note_rounded), label: 'الرئيسية والأغاني'),
           NavigationDestination(icon: Icon(Icons.play_lesson_rounded), label: 'الحلقات'),
           NavigationDestination(icon: Icon(Icons.extension_rounded), label: 'الألعاب'),
-          NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'القصص'),
+          NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'القصص المسموعة'),
           NavigationDestination(icon: Icon(Icons.family_restroom_rounded), label: 'ركن الأهل'),
         ],
       ),
@@ -369,9 +480,92 @@ class _FaseehMainScreenState extends State {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 8, right: 4),
+          child: Text(
+            '🎵 أناشيد وأغاني عالم فصيح (على طريقة لولو كيدز):',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+        ),
+        Column(
+          children: List.generate(_songs.length, (int sIdx) {
+            final SongData song = _songs[sIdx] as SongData;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: 3,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: song.color.withAlpha(90), width: 2),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: song.color.withAlpha(35),
+                          child: Text(song.emoji, style: const TextStyle(fontSize: 28)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            song.title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 17,
+                              color: song.color,
+                            ),
+                          ),
+                        ),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(backgroundColor: song.color),
+                          onPressed: () {
+                            _giveReward(5, song.lyrics, song.audioKey, '🎵');
+                          },
+                          icon: const Icon(Icons.volume_up_rounded),
+                          label: const Text('استمع 🔊'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      song.lyrics,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.6,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.only(bottom: 8, right: 4),
+          child: Text(
+            '🚀 أقسام المغامرات التفاعلية:',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+        ),
         _buildBannerCard(
-          title: '🎬 الحلقات الكرتونية التفاعلية',
-          subtitle: 'شاهد مغامرات فصيح واضغط على المفردات الفصيحة لتتعلمها',
+          title: '🎬 الحلقات والمفردات الناطقة',
+          subtitle: 'اضغط على أي كلمة عربية لتسمع نطقها الفصيح مع مثال كامل',
           color: const Color(0xFF0284C7),
           icon: Icons.ondemand_video_rounded,
           onTap: () {
@@ -381,8 +575,8 @@ class _FaseehMainScreenState extends State {
           },
         ),
         _buildBannerCard(
-          title: '🎮 ألعاب وتحديات الفصحى',
-          subtitle: 'اختبر ذكاءك اللغوي واجمع النجوم الذهبية مع كل إجابة صحيحة',
+          title: '🎮 ألعاب وتحديات الفصحى الصوتية',
+          subtitle: 'استمع إلى السؤال بصوت فصيح واختر الإجابة الصحيحة لتفوز بالنجوم',
           color: const Color(0xFFD97706),
           icon: Icons.emoji_events_rounded,
           onTap: () {
@@ -392,24 +586,13 @@ class _FaseehMainScreenState extends State {
           },
         ),
         _buildBannerCard(
-          title: '📖 مكتبة القصص المصوّرة والمشكولة',
-          subtitle: 'اقرأ قصصاً عربية مشوّقة بالحركات الكاملة واستفد من حكمتها',
+          title: '📖 مكتبة القصص المسموعة والمشكولة',
+          subtitle: 'استمع إلى الحكايات العربية المشوّقة بصوت طبيعي دافئ',
           color: const Color(0xFF7C3AED),
           icon: Icons.auto_stories_rounded,
           onTap: () {
             setState(() {
               _currentIndex = 3;
-            });
-          },
-        ),
-        _buildBannerCard(
-          title: '👨‍👩‍👧‍👦 لوحة متابعة الوالدين والمربين',
-          subtitle: 'نصائح تربوية وتقرير تقدم الطفل في اكتساب اللغة العربية السليمة',
-          color: const Color(0xFF059669),
-          icon: Icons.verified_user_rounded,
-          onTap: () {
-            setState(() {
-              _currentIndex = 4;
             });
           },
         ),
@@ -427,7 +610,7 @@ class _FaseehMainScreenState extends State {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: ListTile(
         contentPadding: const EdgeInsets.all(14),
         leading: CircleAvatar(
@@ -457,7 +640,7 @@ class _FaseehMainScreenState extends State {
         final EpisodeData ep = _episodes[i] as EpisodeData;
         return Card(
           margin: const EdgeInsets.only(bottom: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -478,47 +661,44 @@ class _FaseehMainScreenState extends State {
                 ),
                 Text(
                   ep.title,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   ep.description,
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                  style: const TextStyle(fontSize: 13.5, color: Color(0xFF64748B)),
                 ),
                 const Divider(height: 20),
                 const Text(
-                  'اضغط على الكلمات الفصيحة لتعلّمها وكسب النجوم:',
+                  '🔊 اضغط على أي كلمة لسماع نطقها الطبيعي ومثالها:',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    fontSize: 14,
                     color: Color(0xFF0284C7),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: List.generate(ep.words.length, (int wIdx) {
                     final WordData item = ep.words[wIdx] as WordData;
                     return ActionChip(
-                      backgroundColor: const Color(0xFFF0F9FF),
-                      label: Text('🔊 ${item.word}: ${item.meaning}'),
+                      backgroundColor: const Color(0xFFE0F2FE),
+                      label: Text(
+                        '🔊 ${item.word} (${item.meaning})',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
                       onPressed: () {
-                        _giveReward(2, 'مفردة: ${item.word} — مثال: ${item.example}');
+                        _giveReward(
+                          3,
+                          '${item.word}: ${item.meaning} — ${item.example}',
+                          item.audioKey,
+                          '🦉',
+                        );
                       },
                     );
                   }),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      _giveReward(5, 'أحسنت مشاهدة وتعلّم ${ep.title}!');
-                    },
-                    icon: const Icon(Icons.play_circle_fill_rounded),
-                    label: const Text('إتمام الحلقة التفاعلية (+5 ⭐)'),
-                  ),
                 ),
               ],
             ),
@@ -536,7 +716,7 @@ class _FaseehMainScreenState extends State {
         final QuizData q = _quizzes[i] as QuizData;
         return Card(
           margin: const EdgeInsets.only(bottom: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -558,8 +738,15 @@ class _FaseehMainScreenState extends State {
                     Expanded(
                       child: Text(
                         q.question,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15.5),
                       ),
+                    ),
+                    IconButton(
+                      tooltip: 'سماع السؤال بالصوت',
+                      onPressed: () {
+                        _playAudioClip(q.audioKey, q.question, '🤔');
+                      },
+                      icon: const Icon(Icons.volume_up_rounded, color: Color(0xFF0284C7)),
                     ),
                   ],
                 ),
@@ -568,20 +755,24 @@ class _FaseehMainScreenState extends State {
                   children: List.generate(q.options.length, (int optIdx) {
                     final String optionText = q.options[optIdx].toString();
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
                           onPressed: () {
                             if (optIdx == q.correct) {
-                              _giveReward(10, 'ممتاز! ${q.explanation}');
+                              _giveReward(10, q.explanation, 'bravo', '🥳');
                             } else {
-                              setState(() {
-                                _speechText = 'حاول مجدداً يا بطل الفصحى!';
-                              });
+                              _playAudioClip('try_again', 'حاول مرة أخرى يا بطل الفصحى!', '💪');
                             }
                           },
-                          child: Text(optionText),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              optionText,
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ),
                       ),
                     );
@@ -603,21 +794,42 @@ class _FaseehMainScreenState extends State {
         final StoryData story = _stories[i] as StoryData;
         return Card(
           margin: const EdgeInsets.only(bottom: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '📚 ${story.title}',
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF7C3AED),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '📚 ${story.title}',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF7C3AED),
+                        ),
+                      ),
+                    ),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF7C3AED),
+                      ),
+                      onPressed: () {
+                        _giveReward(
+                          8,
+                          'تستمع الآن إلى: ${story.title}',
+                          story.audioKey,
+                          '📖',
+                        );
+                      },
+                      icon: const Icon(Icons.volume_up_rounded),
+                      label: const Text('استمع للقصة 🔊'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: List.generate(story.pages.length, (int pIdx) {
@@ -627,8 +839,8 @@ class _FaseehMainScreenState extends State {
                       child: Text(
                         pageText,
                         style: const TextStyle(
-                          fontSize: 14.5,
-                          height: 1.5,
+                          fontSize: 15.5,
+                          height: 1.6,
                           color: Color(0xFF1E293B),
                         ),
                       ),
@@ -637,10 +849,10 @@ class _FaseehMainScreenState extends State {
                 ),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF3E8FF),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
                     '💡 ${story.moral}',
@@ -648,17 +860,6 @@ class _FaseehMainScreenState extends State {
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF6D28D9),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.tonalIcon(
-                    onPressed: () {
-                      _giveReward(8, 'قرأت قصة «${story.title}» ببراعة!');
-                    },
-                    icon: const Icon(Icons.check_circle_outline_rounded),
-                    label: const Text('أنهيت قراءة القصة (+8 ⭐)'),
                   ),
                 ),
               ],
@@ -674,7 +875,7 @@ class _FaseehMainScreenState extends State {
       padding: const EdgeInsets.all(12),
       children: [
         Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -685,7 +886,7 @@ class _FaseehMainScreenState extends State {
                     Icon(Icons.insights_rounded, color: Color(0xFFF59E0B)),
                     SizedBox(width: 8),
                     Text(
-                      'تقرير إنجاز الطفل اللغوي',
+                      'تقرير إنجاز الطفل اللغوي والصوتي',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
                     ),
                   ],
@@ -697,8 +898,13 @@ class _FaseehMainScreenState extends State {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '🎯 الفئة العمرية المختارة: ${_ageGroups[_selectedAgeGroup]}',
+                  '🎯 المرحلة العمرية الحالية: ${_ageGroups[_selectedAgeGroup]}',
                   style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  '🔊 نظام الصوت: ملفات صوتية عربية فصيحة طبيعية مدمجة تعمل بدون إنترنت.',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF0284C7)),
                 ),
                 const SizedBox(height: 6),
                 const Text(
@@ -711,14 +917,14 @@ class _FaseehMainScreenState extends State {
         ),
         const SizedBox(height: 12),
         Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           child: const Padding(
             padding: EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '💡 نصائح تربوية لتعزيز الفصحى في المنزل:',
+                  '💡 نصائح تربوية لتعزيز الفصحى بأسلوب لولو كيدز:',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -726,11 +932,11 @@ class _FaseehMainScreenState extends State {
                   ),
                 ),
                 SizedBox(height: 10),
-                Text('1. خصصوا 15 دقيقة يومياً لمشاهدة حلقة من «عالم فصيح» ومناقشة كلماتها الجديدة.'),
+                Text('1. ابدؤوا بتشغيل أناشيد فصيح اليومية وترديدها مع الطفل بحركات مرحة.'),
                 SizedBox(height: 6),
-                Text('2. شجعوا الطفل على استخدام الكلمات الفصيحة المكتسبة في جمل من تأليفه على مائدة الطعام.'),
+                Text('2. اضغطوا على الكلمات الناطقة في قسم الحلقات وشجعوا الطفل على تقليد النطق السليم.'),
                 SizedBox(height: 6),
-                Text('3. اقرؤوا القصص المشكولة معاً بصوت معبّر لترسيخ مخارج الحروف السليمة.'),
+                Text('3. استمعوا معاً إلى القصص المسموعة قبل النوم لتعزيز الخيال والحصيلة اللغوية.'),
               ],
             ),
           ),
