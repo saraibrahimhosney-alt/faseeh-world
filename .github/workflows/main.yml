@@ -24,12 +24,13 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Prepare Flutter Project
+      - name: Create Project and Copy Your main.dart
         run: |
-          flutter create --platforms=android --org com.faseeh.world .
-          flutter pub get
+          flutter create --platforms=android --org com.faseeh.world faseeh_app
+          cp main.dart faseeh_app/lib/main.dart
 
       - name: Build Android APK
+        working-directory: faseeh_app
         run: |
           yes "y" | flutter doctor --android-licenses || true
           flutter build apk --debug
@@ -38,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Faseeh-World-Android-APK
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: faseeh_app/build/app/outputs/flutter-apk/app-debug.apk
