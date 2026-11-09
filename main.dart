@@ -14,119 +14,125 @@ class FaseehWorldApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFFFFDF7),
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0EA5E9),
-          primary: const Color(0xFF0EA5E9),
+          seedColor: const Color(0xFF0284C7),
+          primary: const Color(0xFF0284C7),
           secondary: const Color(0xFFF59E0B),
         ),
       ),
       home: const Directionality(
         textDirection: TextDirection.rtl,
-        child: FaseehHomeScreen(),
+        child: FaseehMainScreen(),
       ),
     );
   }
 }
 
-class FaseehHomeScreen extends StatefulWidget {
-  const FaseehHomeScreen({super.key});
+class FaseehMainScreen extends StatefulWidget {
+  const FaseehMainScreen({super.key});
 
   @override
-  State<FaseehHomeScreen> createState() => _FaseehHomeScreenState();
+  State<FaseehMainScreen> createState() => _FaseehMainScreenState();
 }
 
-class _FaseehHomeScreenState extends State<FaseehHomeScreen> {
-  int _selectedIndex = 0;
-  int _stars = 25;
-  int _selectedAgeGroup = 0; // 0: 3-5, 1: 6-8, 2: 9-12
-  String _faseehSpeech = 'أهلاً بك يا بطل الفصحى في عالم فصيح! اضغط على أي قسم لنبدأ المغامرة!';
+class _FaseehMainScreenState extends State<FaseehMainScreen> {
+  int _currentIndex = 0;
+  int _stars = 45;
+  int _selectedAge = 1;
+  String _speechText = 'مرحباً يا بطل الفصحى! اختر قسماً لنبدأ الرحلة!';
 
-  final List<String> _ageLabels = ['٣ - ٥ سنوات 🌱', '٦ - ٨ سنوات 🚀', '٩ - ١٢ سنة 🌟'];
+  final List<String> _ageGroups = [
+    '٣ - ٥ سنوات 🌱',
+    '٦ - ٨ سنوات 🚀',
+    '٩ - ١٢ سنة 🌟'
+  ];
 
-  final List<Map<String, dynamic>> _episodes = [
+  final List> _episodes = [
     {
       'title': 'فصيح في البُسْتان الجميل',
-      'age': 0,
-      'duration': '٠٣:١٥',
-      'summary': 'يتجول فصيح بين الأشجار ويتعلم أسماء الفواكه والألوان بالعربية الفصحى.',
+      'duration': '٠٣:٤٥ دقيقة',
+      'description': 'يتجول فصيح بين الأشجار ليتعلم أسماء الفواكه والأشجار والطيور بالعربية الفصحى.',
       'words': [
-        {'word': 'بُسْتان', 'meaning': 'حديقة واسعة مليئة بالأشجار والأزهار', 'example': 'ذَهَبَ فَصِيحٌ إِلَى البُسْتانِ الجَمِيلِ.'},
-        {'word': 'تُفَّاحَة', 'meaning': 'فاكهة لذيذة حمراء أو خضراء', 'example': 'أَكَلَ الطِّفْلُ تُفَّاحَةً نَاضِجَةً.'},
-        {'word': 'عُصْفُور', 'meaning': 'طائر صغير يغرد فوق الشجرة', 'example': 'غَرَّدَ العُصْفُورُ فَوْقَ الغُصْنِ.'},
+        {'word': 'بُسْتان', 'meaning': 'حديقة واسعة غنّاء مليئة بالأشجار والأزهار', 'example': 'ذَهَبَ فَصِيحٌ إِلَى البُسْتانِ العَطِرِ.'},
+        {'word': 'تُفَّاحَة', 'meaning': 'فاكهة مستديرة لذيذة غنية بالفيتامينات', 'example': 'قَطَفَ الطِّفْلُ تُفَّاحَةً حَمْرَاءَ نَاضِجَةً.'},
+        {'word': 'غَدِير', 'meaning': 'نهر صغير أو مجرى ماء عذب وصافٍ', 'example': 'شَرِبَتِ العَصَافِيرُ مِنْ مَاءِ الغَدِيرِ.'},
       ]
     },
     {
-      'title': 'رحلة الفضاء والكواكب',
-      'age': 1,
-      'duration': '٠٤:٢٠',
-      'summary': 'ينطلق فصيح في مركبته الفضائية ليكتشف المجموعة الشمسية والنجوم المضيئة.',
+      'title': 'مغامرة فصيح في الفضاء الخارجي',
+      'duration': '٠٤:٣٠ دقيقة',
+      'description': 'يركب فصيح مركبته الفضائية ليكتشف الكواكب والنجوم وأسرار المجرة الكبرى.',
       'words': [
-        {'word': 'مَجَرَّة', 'meaning': 'تجمع هائل من النجوم والكواكب في الفضاء', 'example': 'نَحْنُ نَعِيشُ فِي مَجَرَّةِ دَرْبِ التَّبَّانَةِ.'},
-        {'word': 'مِجْهَر', 'meaning': 'آلة تكبير الأشياء الدقيقة لرؤيتها بوضوح', 'example': 'فَحَصَ العَالِمُ العَيِّنَةَ بِالمِجْهَرِ.'},
+        {'word': 'مَجَرَّة', 'meaning': 'نظام كوني هائل يضم مليارات النجوم والكواكب', 'example': 'كَوْكَبُ الأَرْضِ يَنْتَمِي لِمَجَرَّةِ دَرْبِ التَّبَّانَةِ.'},
+        {'word': 'مِرْصَد', 'meaning': 'مبنى خاص مجهز لمراقبة النجوم والظواهر الفلكية', 'example': 'شَاهَدْنَا خُسُوفَ القَمَرِ عَبْرَ المِرْصَدِ.'},
       ]
     },
     {
-      'title': 'كنز المكتبة القديمة',
-      'age': 2,
-      'duration': '٠٥:١٠',
-      'summary': 'يكتشف فصيح مخطوطة عربية قديمة تحكي تاريخ العلماء والمخترعين العرب.',
+      'title': 'مملكة النحل والعمل الدؤوب',
+      'duration': '٠٥:١٠ دقيقة',
+      'description': 'يتعلم فصيح كيف يتعاون النحل داخل الخلية لإنتاج العسل الصافي اللذيذ.',
       'words': [
-        {'word': 'مَخْطُوطَة', 'meaning': 'كتاب قديم كُتب بخط اليد قبل الطباعة', 'example': 'وَجَدَ البَاحِثُ مَخْطُوطَةً نَادِرَةً.'},
-        {'word': 'بَصِيرَة', 'meaning': 'فهم عميق وحكمة في إدراك الأمور', 'example': 'يَتَمَيَّزُ الحَكِيمُ بِالبَصِيرَةِ وَالعِلْمِ.'},
-      ]
-    },
-  ];
-
-  final List<Map<String, dynamic>> _stories = [
-    {
-      'title': 'الأرنب الذكي والجزرة الذهبية',
-      'moral': 'التعاون والإيثار يجعلان السعادة مضاعفة.',
-      'pages': [
-        'فِي يَوْمٍ مُشْمِسٍ، خَرَجَ الأَرْنَبُ «أَبْيَضُ» يَبْحَثُ عَنْ طَعَامٍ فِي الغَابَةِ الخَضْرَاءِ.',
-        'وَجَدَ الأَرْنَبُ جَزَرَةً كَبِيرَةً لَامِعَةً، لَكِنَّهَا كَانَتْ عَالِقَةً بَيْنَ الصُّخُورِ.',
-        'نَادَى الأَرْنَبُ صَدِيقَهُ السِّنْجَابَ، فَتَعَاوَنَا مَعاً وَأَخْرَجَا الجَزَرَةَ وَتَقَاسَمَاهَا بِسَعَادَةٍ!'
-      ]
-    },
-    {
-      'title': 'سر الساعة العجيبة',
-      'moral': 'الوقت كنز ثمين من ينظمه ينجح ويتفوق.',
-      'pages': [
-        'أَهْدَى الجَدُّ حَفِيدَهُ «فَصِيحاً» سَاعَةً ذَهَبِيَّةً تَنْطِقُ بِالحِكَمِ كُلَّ صَبَاحٍ.',
-        'قَالَتِ السَّاعَةُ: «مَنْ يُنَظِّمْ وَقْتَهُ بَيْنَ العِلْمِ وَاللَّعِبِ يَبْلُغْ أَعْلَى المَرَاتِبِ!»',
-        'وَظَبَ فَصِيحٌ عَلَى قِرَاءَةِ كِتَابٍ كُلَّ يَوْمٍ حَتَّى أَصْبَحَ أَفْصَحَ طُلَّابِ مَدْرَسَتِهِ.'
+        {'word': 'يَعْسُوب', 'meaning': 'أمير النحل أو ملكته التي ترعى الخلية', 'example': 'تَلْتَفُّ النَّحَلَاتُ حَوْلَ اليَعْسُوبِ بِحُبٍّ.'},
+        {'word': 'شَهْد', 'meaning': 'عسل النحل وهو في شمعه النقي', 'example': 'تَذَوَّقَ الأَوْلَادُ شَهْداً لَذِيذاً كَالسُّكَّرِ.'},
       ]
     }
   ];
 
-  final List<Map<String, dynamic>> _questions = [
+  final List> _quizzes = [
     {
-      'q': 'ما معنى كلمة «بُسْتان» في اللغة العربية الفصحى؟',
-      'options': ['حديقة واسعة مليئة بالأشجار 🌳', 'مركبة فضائية سريعة 🚀', 'سفينة في وسط البحر ⛵'],
+      'question': 'ما المعنى الدقيق لكلمة «غَدِير» في لغتنا الجميلة؟',
+      'options': ['مجرى ماء عذب وصغير 💧', 'جبل شاهق الارتفاع ⛰️', 'رياح قوية وعاصفة 🌪️'],
       'correct': 0,
+      'explanation': 'الغدير هو قطعة ماء يتركها السيل أو النهر الصغير العذب!'
     },
     {
-      'q': 'أيُّ جملةٍ من الجمل التالية صحيحةٌ بالفصحى؟',
-      'options': ['قَرَأَ الطِّفْلُ قِصَّةً مُفِيدَةً 📖', 'قرأوا الطفل قصة مفيدة', 'يقرأون الطفل القصة'],
+      'question': 'أيُّ الجمل الآتية مكتوبة بأسلوب عربي فصيح وصحيح؟',
+      'options': ['قَرَأَ الأَوْلَادُ قِصَّةً شَيِّقَةً 📚', 'قرأوا الأولاد القصة الشيقة', 'الأولاد قرأ قصة شيقة'],
       'correct': 0,
+      'explanation': 'الفعل في بداية الجملة الفصحى يظل مفرداً مع الفاعل الظاهر!'
     },
     {
-      'q': 'ما الكلمة الفصحى التي تعني «آلة تكبير الأشياء الدقيقة»؟',
-      'options': ['مِجْهَر 🔬', 'مِصْبَاح 💡', 'مِفْتَاح 🔑'],
+      'question': 'ما الكلمة التي تعني «المبنى المجهز لمراقبة النجوم والكواكب»؟',
+      'options': ['مِرْصَد 🔭', 'مِجْهَر 🔬', 'مِيزَان ⚖️'],
       'correct': 0,
+      'explanation': 'المرصد الفلكي هو المكان المخصص لرصد الأجرام السماوية!'
     }
   ];
 
-  void _addStars(int amount, String message) {
+  final List> _stories = [
+    {
+      'title': 'الأرنب الصغير وسر الجزرة الذهبية',
+      'pages': [
+        'فِي صَبَاحِ يَوْمٍ رَبِيعِيٍّ جَمِيلٍ، خَرَجَ الأَرْنَبُ «سُكَّرُ» لِيَلْعَبَ فِي الحُقُولِ الخَضْرَاءِ الوَاسِعَةِ.',
+        'وَفَجْأَةً، لَمَحَ جَزَرَةً ضَخْمَةً تَشِعُّ كَالذَّهَبِ الخَالِصِ تَحْتَ ظِلِّ شَجَرَةِ سِنْدِيَانٍ عَتِيقَةٍ.',
+        'حَاوَلَ سُكَّرُ أَنْ يَجْذِبَهَا وَحْدَهُ، لَكِنَّهَا كَانَتْ عَمِيقَةً فِي الأَرْضِ وَلَمْ تَتَحَرَّكْ قَيْدَ أُنْمُلَةٍ.',
+        'نَادَى سُكَّرُ صَدِيقَهُ القُنْفُذَ «شَوْكِي»، فَتَعَاوَنَا مَعاً بِكُلِّ عَزِيمَةٍ حَتَّى خَرَجَتِ الجَزَرَةُ العِمْلَاقَةُ!',
+        'قَسَمَ الصَّدِيقَانِ الجَزَرَةَ بَيْنَهُمَا بِالإِنْصَافِ، وَعَلِمَا أَنَّ ثَمَرَةَ التَّعَاوُنِ أَلَذُّ مِنْ أَيِّ كَنْزٍ.'
+      ],
+      'moral': 'يَدُ اللهِ مَعَ الجَمَاعَةِ، وَبِالتَّعَاوُنِ تَهُونُ كُلُّ الصِّعَابِ.'
+    },
+    {
+      'title': 'ساعة الحكيم وفصيح',
+      'pages': [
+        'قَدَّمَ الجَدُّ لِحَفِيدِهِ فَصِيحٍ سَاعَةً حَائِطِيَّةً صَنَعَهَا بِيَدَيْهِ، وَكَتَبَ عَلَيْهَا: «الوَّقْتُ كَنْزٌ»...',
+        'قَالَ الجَدُّ: «يَا بُنَيَّ، إِنَّ السَّاعَةَ لَا تَعُودُ لِلْوَرَاءِ، فَمَنْ حَفِظَ سَاعَاتِهِ فِي القِرَاءَةِ وَالعَمَلِ صَارَ عَظِيماً.»',
+        'جَعَلَ فَصِيحٌ لِكُلِّ سَاعَةٍ فِي يَوْمِهِ نَصِيباً: سَاعَةً لِلتَّعَلُّمِ، وَسَاعَةً لِلَّعِبِ، وَسَاعَةً لِمُسَاعَدَةِ الأَهْلِ.'
+      ],
+      'moral': 'تَنْظِيمُ الوَقْتِ هُوَ الطَّرِيقُ الأَوَّلُ لِلنَّجَاحِ وَالتَّفَوُّقِ.'
+    }
+  ];
+
+  void _giveReward(int points, String feedback) {
     setState(() {
-      _stars += amount;
-      _faseehSpeech = message;
+      _stars += points;
+      _speechText = feedback;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$message (+$amount ⭐)', textDirection: TextDirection.rtl),
+        content: Text('$feedback (+ $points ⭐)', textDirection: TextDirection.rtl),
         backgroundColor: const Color(0xFF10B981),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(milliseconds: 2500),
       ),
     );
   }
@@ -135,7 +141,8 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0EA5E9),
+        elevation: 0,
+        backgroundColor: const Color(0xFF0284C7),
         foregroundColor: Colors.white,
         title: const Row(
           children: [
@@ -145,7 +152,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen> {
         ),
         actions: [
           Container(
-            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             decoration: BoxDecoration(
               color: const Color(0xFFF59E0B),
@@ -153,16 +160,15 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen> {
             ),
             child: Row(
               children: [
-                const Text('⭐ ', style: TextStyle(fontSize: 18)),
-                Text('$_stars نجمة', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                const Text('⭐ ', style: TextStyle(fontSize: 16)),
+                Text('$_stars', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
               ],
             ),
-          )
+          ),
         ],
       ),
       body: Column(
         children: [
-          // Mascot Banner
           Container(
             width: double.infinity,
             margin: const EdgeInsets.all(12),
@@ -170,53 +176,55 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen> {
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFFE0F2FE), Color(0xFFFEF3C7)],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF38BDF8), width: 2),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFF38BDF8), width: 1.5),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 52,
+                  height: 52,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF0EA5E9),
+                    color: Color(0xFF0284C7),
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
-                  child: const Text('🦉', style: TextStyle(fontSize: 32)),
+                  child: const Text('🦉', style: TextStyle(fontSize: 30)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    _faseehSpeech,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                    _speechText,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                   ),
                 ),
               ],
             ),
           ),
-          // Age selector
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
-              children: List.generate(_ageLabels.length, (i) {
-                final selected = _selectedAgeGroup == i;
+              children: List.generate(_ageGroups.length, (idx) {
+                final isSelected = _selectedAge == idx;
                 return Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: ChoiceChip(
-                    label: Text(_ageLabels[i]),
-                    selected: selected,
-                    selectedColor: const Color(0xFFF59E0B),
+                    label: Text(_ageGroups[idx]),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFF0284C7),
+                    backgroundColor: Colors.white,
                     labelStyle: TextStyle(
-                      color: selected ? Colors.white : const Color(0xFF1E293B),
+                      color: isSelected ? Colors.white : const Color(0xFF334155),
                       fontWeight: FontWeight.bold,
                     ),
                     onSelected: (_) {
                       setState(() {
-                        _selectedAgeGroup = i;
-                        _faseehSpeech = 'تم اختيار مرحلة ${_ageLabels[i]} بنجاح!';
+                        _selectedAge = idx;
+                        _speechText = 'تم ضبط المحتوى لمرحلة ${_ageGroups[idx]}!';
                       });
                     },
                   ),
@@ -227,154 +235,137 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen> {
           const SizedBox(height: 8),
           Expanded(
             child: IndexedStack(
-              index: _selectedIndex,
+              index: _currentIndex,
               children: [
-                _buildHomeTab(),
-                _buildCartoonTab(),
-                _buildGamesTab(),
-                _buildStoriesTab(),
-                _buildParentAdminTab(),
+                _buildHomeView(),
+                _buildEpisodesView(),
+                _buildGamesView(),
+                _buildStoriesView(),
+                _buildParentsView(),
               ],
             ),
           ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (idx) => setState(() => _selectedIndex = idx),
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (val) => setState(() => _currentIndex = val),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_rounded), label: 'الرئيسية'),
-          NavigationDestination(icon: Icon(Icons.ondemand_video_rounded), label: 'الكرتون'),
+          NavigationDestination(icon: Icon(Icons.movie_creation_rounded), label: 'الكرتون'),
           NavigationDestination(icon: Icon(Icons.videogame_asset_rounded), label: 'الألعاب'),
-          NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'القصص'),
-          NavigationDestination(icon: Icon(Icons.admin_panel_settings_rounded), label: 'الوالدين'),
+          NavigationDestination(icon: Icon(Icons.auto_stories_rounded), label: 'القصص'),
+          NavigationDestination(icon: Icon(Icons.family_restroom_rounded), label: 'ولي الأمر'),
         ],
       ),
     );
   }
 
-  Widget _buildHomeTab() {
+  Widget _buildHomeView() {
     return ListView(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       children: [
-        _buildBigCard(
-          title: '🎬 حلقات الكرتون التفاعلي',
-          subtitle: 'شاهد مغامرات فصيح وتعلم كلمات عربية جديدة بالصوت والصورة',
-          color: const Color(0xFF0EA5E9),
-          onTap: () => setState(() => _selectedIndex = 1),
+        _buildBannerCard(
+          title: '🎬 كرتون مغامرات فصيح',
+          desc: 'حلقات ورسوم متحركة تنمي الحصيلة اللغوية بالفصحى السليمة.',
+          color: const Color(0xFF0284C7),
+          icon: Icons.play_arrow_rounded,
+          onTap: () => setState(() => _currentIndex = 1),
         ),
-        _buildBigCard(
-          title: '🎮 ألعاب التحدي والذكاء اللغوي',
-          subtitle: 'اختبر حصيلتك اللغوية واجمع النجوم الذهبية والأوسمة',
+        _buildBannerCard(
+          title: '🎮 تحديات وألعاب الذكاء',
+          desc: 'أسئلة تفاعلية ومسابقات تجمع من خلالها النجوم والأوسمة.',
           color: const Color(0xFF10B981),
-          onTap: () => setState(() => _selectedIndex = 2),
+          icon: Icons.sports_esports_rounded,
+          onTap: () => setState(() => _currentIndex = 2),
         ),
-        _buildBigCard(
-          title: '📖 مكتبة القصص المصورة',
-          subtitle: 'اقرأ واستمع إلى أجمل القصص العربية المشكولة صفحة بصفحة',
+        _buildBannerCard(
+          title: '📖 مكتبة فصيح المصورة',
+          desc: 'قصص مشكولة ومسموعة تغرس القيم والأخلاق الرفيعة.',
           color: const Color(0xFF8B5CF6),
-          onTap: () => setState(() => _selectedIndex = 3),
+          icon: Icons.menu_book_rounded,
+          onTap: () => setState(() => _currentIndex = 3),
         ),
-        _buildBigCard(
-          title: '👨‍👩‍👧 بوابة الوالدين وإدارة المحتوى',
-          subtitle: 'متابعة تقدم الطفل وإضافة حلقات وكلمات وقصص جديدة فوراً',
+        _buildBannerCard(
+          title: '👨‍👩‍👧 لوحة تحكم ولي الأمر',
+          desc: 'متابعة مستوى الطفل، تقارير الوقت، وإدارة المفردات.',
           color: const Color(0xFFF59E0B),
-          onTap: () => setState(() => _selectedIndex = 4),
+          icon: Icons.admin_panel_settings_rounded,
+          onTap: () => setState(() => _currentIndex = 4),
         ),
       ],
     );
   }
 
-  Widget _buildBigCard({
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildBannerCard({required String title, required String desc, required Color color, required IconData icon, required VoidCallback onTap}) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 3,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border(right: BorderSide(color: color, width: 8)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-                    const SizedBox(height: 6),
-                    Text(subtitle, style: const TextStyle(fontSize: 14, color: Color(0xFF475569))),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios_rounded, color: color),
-            ],
-          ),
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(14),
+        leading: CircleAvatar(backgroundColor: color.withOpacity(0.15), radius: 26, child: Icon(icon, color: color, size: 28)),
+        title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: color)),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(desc, style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
         ),
+        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: color),
+        onTap: onTap,
       ),
     );
   }
 
-  Widget _buildCartoonTab() {
+  Widget _buildEpisodesView() {
     return ListView.builder(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       itemCount: _episodes.length,
-      itemBuilder: (context, idx) {
-        final ep = _episodes[idx];
+      itemBuilder: (ctx, i) {
+        final ep = _episodes[i];
         final words = ep['words'] as List;
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           elevation: 3,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  height: 150,
+                  height: 140,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF0284C7), Color(0xFF38BDF8)]),
-                    borderRadius: BorderRadius.circular(16),
+                    gradient: const LinearGradient(colors: [Color(0xFF0369A1), Color(0xFF38BDF8)]),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Center(
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF59E0B),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       ),
-                      onPressed: () => _addStars(5, 'أحسنت مشاهدة حلقة «${ep['title']}»!'),
-                      icon: const Icon(Icons.play_circle_fill_rounded, size: 28),
-                      label: Text('تشغيل الحلقة (${ep['duration']})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      onPressed: () => _giveReward(5, 'أحسنت بمشاهدة حلقة «${ep['title']}»!'),
+                      icon: const Icon(Icons.play_circle_fill_rounded),
+                      label: Text('تشغيل الحلقة (${ep['duration']})'),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Text(ep['title'], style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                Text(ep['title'], style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(ep['summary'], style: const TextStyle(color: Color(0xFF475569))),
-                const Divider(height: 24),
-                const Text('💎 كلمات الحلقة الفصيحة (اضغط على الكلمة لتعلمها):', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(ep['description'], style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                const Divider(height: 20),
+                const Text('المفردات الفصيحة المكتسبة:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0284C7))),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: words.map<Widget>((w) {
+                  children: words.map<Widget>((item) {
                     return ActionChip(
-                      backgroundColor: const Color(0xFFE0F2FE),
-                      label: Text('🔊 ${w['word']} — ${w['meaning']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      onPressed: () => _addStars(2, 'كلمة رائعة: «${w['word']}»! مِثَال: ${w['example']}'),
+                      backgroundColor: const Color(0xFFF0F9FF),
+                      label: Text('🔊 ${item['word']}: ${item['meaning']}'),
+                      onPressed: () => _giveReward(2, 'مفردة: ${item['word']} — مثال: ${item['example']}'),
                     );
                   }).toList(),
                 )
@@ -386,47 +377,43 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen> {
     );
   }
 
-  Widget _buildGamesTab() {
+  Widget _buildGamesView() {
     return ListView.builder(
-      padding: const EdgeInsets.all(14),
-      itemCount: _questions.length,
-      itemBuilder: (context, idx) {
-        final q = _questions[idx];
-        final opts = q['options'] as List<String>;
+      padding: const EdgeInsets.all(12),
+      itemCount: _quizzes.length,
+      itemBuilder: (ctx, i) {
+        final q = _quizzes[i];
+        final options = q['options'] as List<String>;
         return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 3,
+          margin: const EdgeInsets.only(bottom: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('سؤال التحدي ${idx + 1}:', style: const TextStyle(color: Color(0xFF0EA5E9), fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                Text(q['q'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    CircleAvatar(backgroundColor: const Color(0xFF10B981), radius: 14, child: Text('${i + 1}', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold))),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(q['question'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                  ],
+                ),
                 const SizedBox(height: 12),
-                ...List.generate(opts.length, (optIdx) {
+                ...List.generate(options.length, (optIdx) {
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: 6),
                     child: SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.all(14),
-                          alignment: Alignment.centerRight,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
                         onPressed: () {
                           if (optIdx == q['correct']) {
-                            _addStars(10, 'إجابة صحيحة يا بطل الفصحى! أحسنت!');
+                            _giveReward(10, 'ممتاز! ${q['explanation']}');
                           } else {
-                            setState(() {
-                              _faseehSpeech = 'حاول مرة أخرى يا بطل! فكّر جيداً في معنى الكلمة.';
-                            });
+                            setState(() => _speechText = 'حاول مجدداً يا بطل الفصحى!');
                           }
                         },
-                        child: Text(opts[optIdx], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: Text(options[optIdx]),
                       ),
                     ),
                   );
@@ -439,43 +426,42 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen> {
     );
   }
 
-  Widget _buildStoriesTab() {
+  Widget _buildStoriesView() {
     return ListView.builder(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       itemCount: _stories.length,
-      itemBuilder: (context, idx) {
-        final st = _stories[idx];
-        final pages = st['pages'] as List<String>;
+      itemBuilder: (ctx, i) {
+        final story = _stories[i];
+        final pages = story['pages'] as List<String>;
         return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 3,
+          margin: const EdgeInsets.only(bottom: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('📖 ${st['title']}', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: Color(0xFF7C3AED))),
+                Text('📚 ${story['title']}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF7C3AED))),
                 const SizedBox(height: 10),
                 ...pages.map((p) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F3FF),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(p, style: const TextStyle(fontSize: 17, height: 1.6)),
-                      ),
-                    )),
-                const SizedBox(height: 8),
-                Text('💡 الحكمة المستفادة: ${st['moral']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF059669))),
-                const SizedBox(height: 10),
-                ElevatedButton.icon(
-                  onPressed: () => _addStars(8, 'أتممت قراءة قصة «${st['title']}» بنجاح!'),
-                  icon: const Icon(Icons.check_circle_outline_rounded),
-                  label: const Text('أنهيت قراءة القصة (+٨ نجوم ⭐)'),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(p, style: const TextStyle(fontSize: 14.5, height: 1.5, color: Color(0xFF1E293B))),
+                )),
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: const Color(0xFFF3E8FF), borderRadius: BorderRadius.circular(10)),
+                  child: Text('💡 القيمة المستفادة: ${story['moral']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B21A8), fontSize: 13.5)),
                 ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B5CF6), foregroundColor: Colors.white),
+                    onPressed: () => _giveReward(8, 'أتممت قراءة قصة «${story['title']}» بالكامل!'),
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('أنهيت القراءة (+ 8 ⭐)'),
+                  ),
+                )
               ],
             ),
           ),
@@ -484,89 +470,48 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen> {
     );
   }
 
-  Widget _buildParentAdminTab() {
-    final titleController = TextEditingController();
-    final wordController = TextEditingController();
-    final meaningController = TextEditingController();
-
+  Widget _buildParentsView() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       children: [
         Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('📊 تقرير تقدم الطفل في عالم فصيح', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Text('• مجموع النجوم المكتسبة: $_stars نجمة ⭐', style: const TextStyle(fontSize: 16)),
-                Text('• عدد الحلقات المتاحة: ${_episodes.length} حلقات 🎬', style: const TextStyle(fontSize: 16)),
-                Text('• عدد القصص التفاعلية: ${_stories.length} قصص 📖', style: const TextStyle(fontSize: 16)),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('➕ إضافة حلقة وكلمة جديدة للتطبيق', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'عنوان الحلقة الجديدة', border: OutlineInputBorder()),
+                const Row(
+                  children: [
+                    Icon(Icons.insights_rounded, color: Color(0xFFF59E0B)),
+                    SizedBox(width: 8),
+                    Text('تقرير إنجاز الطفل اللغوي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: wordController,
-                  decoration: const InputDecoration(labelText: 'الكلمة الفصيحة المستهدفة', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: meaningController,
-                  decoration: const InputDecoration(labelText: 'شرح معنى الكلمة للطفل', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0EA5E9),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                  ),
-                  onPressed: () {
-                    if (titleController.text.trim().isNotEmpty) {
-                      setState(() {
-                        _episodes.add({
-                          'title': titleController.text.trim(),
-                          'age': _selectedAgeGroup,
-                          'duration': '٠٣:٣٠',
-                          'summary': 'حلقة تعليمية مضافة من لوحة الإدارة.',
-                          'words': [
-                            {
-                              'word': wordController.text.trim().isEmpty ? 'فَصَاحَة' : wordController.text.trim(),
-                              'meaning': meaningController.text.trim().isEmpty ? 'البيان ووضوح الكلام' : meaningController.text.trim(),
-                              'example': 'تَعَلَّمْتُ كَلِمَةً جَدِيدَةً فِي عَالَمِ فَصِيحٍ.'
-                            }
-                          ]
-                        });
-                      });
-                      _addStars(5, 'تمت إضافة الحلقة الجديدة إلى قسم الكرتون بنجاح!');
-                    }
-                  },
-                  icon: const Icon(Icons.add_circle_outline_rounded),
-                  label: const Text('حفظ ونشر الحلقة في التطبيق فوراً'),
-                )
+                const Divider(height: 24),
+                _buildStatRow('رصيد النجوم الكلي', '$_stars نجمة ⭐'),
+                _buildStatRow('الحلقات التعليمية المتوفرة', '${_episodes.length} حلقات 🎬'),
+                _buildStatRow('المفردات الفصيحة المتاحة', '٨ مفردات مشروحة 📖'),
+                _buildStatRow('تحديات الفصحى التفاعلية', '${_quizzes.length} أسئلة ذكاء 🎮'),
+                _buildStatRow('معدل الاستيعاب التقديري', 'ممتاز (٩٥٪) 🏆'),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildStatRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 14, color: Color(0xFF334155))),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
+        ],
+      ),
     );
   }
 }
