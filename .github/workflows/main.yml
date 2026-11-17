@@ -2,14 +2,15 @@ name: Build Faseeh World Android APK
 
 on:
   push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build-android-apk:
-    name: Build Faseeh APK
-    runs-on: ubuntu-24.04
+  build:
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -22,51 +23,53 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
 
-      - name: Create Project and Bundle Custom Media Assets
+      - name: Create Flutter project structure
         run: |
-          flutter create --platforms=android --org com.faseeh.world faseeh_app
-          cp main.dart faseeh_app/lib/main.dart
-          mkdir -p faseeh_app/assets/audio faseeh_app/assets/images
-          cp *.mp3 faseeh_app/assets/audio/ || true
-          cp *.png faseeh_app/assets/images/ || true
-          cp *.jpg faseeh_app/assets/images/ || true
-          cd faseeh_app
-          flutter pub add audioplayers webview_flutter
+          flutter create --org com.faseeh.world --project-name faseeh_world .
+          rm -rf test
 
-      - name: Configure Assets and App Label
-        shell: python3 {0}
+      - name: Add dependencies
         run: |
-          import os
-          pub_path = "faseeh_app/pubspec.yaml"
-          with open(pub_path, "r", encoding="utf-8") as f:
-              pub_text = f.read()
-          pub_text = pub_text.replace(
-              "uses-material-design: true",
-              "uses-material-design: true\n  assets:\n    - assets/audio/\n    - assets/images/"
-          )
-          with open(pub_path, "w", encoding="utf-8") as f:
-              f.write(pub_text)
+          flutter pub add audioplayers
+          flutter pub add youtube_explode_dart
+          flutter pub add video_player
 
-          man_path = "faseeh_app/android/app/src/main/AndroidManifest.xml"
-          if os.path.exists(man_path):
-              with open(man_path, "r", encoding="utf-8") as f:
-                  man_text = f.read()
-              man_text = man_text.replace('android:label="faseeh_app"', 'android:label="عالم فصيح"')
-              if "INTERNET" not in man_text:
-                  man_text = man_text.replace("<application", '<uses-permission android:name="android.permission.INTERNET"/>\n    <application')
-              with open(man_path, "w", encoding="utf-8") as f:
-                  f.write(man_text)
+      - name: Enable Internet permission in AndroidManifest.xml
+        run: |
+          sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
+
+      - name: Configure assets in pubspec.yaml
+        run: |
+          mkdir -p assets/images assets/audio
+          if [ -d "images" ]; then cp -r images/* assets/images/ 2>/dev/null || true; fi
+          if [ -d "audio" ]; then cp -r audio/* assets/audio/ 2>/dev/null || true; fi
+          cp *.png assets/images/ 2>/dev/null || true
+          cp *.jpg assets/images/ 2>/dev/null || true
+          cp *.mp3 assets/audio/ 2>/dev/null || true
+          python3 -c '
+          with open("pubspec.yaml", "r") as f:
+              content = f.read()
+          assets_block = "\n  assets:\n    - assets/images/\n    - assets/audio/\n"
+          if "uses-material-design: true" in content:
+              content = content.replace("uses-material-design: true", "uses-material-design: true" + assets_block)
+          with open("pubspec.yaml", "w") as f:
+              f.write(content)
+          '
+
+      - name: Place main.dart into lib/
+        run: |
+          if [ -f "main.dart" ]; then
+            cp main.dart lib/main.dart
+          fi
 
       - name: Build Android APK
-        working-directory: faseeh_app
         run: |
-          yes "y" | flutter doctor --android-licenses || true
+          flutter pub get
           flutter build apk --debug
 
       - name: Upload Faseeh World APK
         uses: actions/upload-artifact@v4
         with:
           name: Faseeh-World-Android-APK
-          path: faseeh_app/build/app/outputs/flutter-apk/app-debug.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
