@@ -35,10 +35,11 @@ jobs:
           cd faseeh_app
           flutter pub add audioplayers youtube_player_flutter
 
-      - name: Configure Assets and App Label
+      - name: Configure Assets, App Label and Android YouTube Support
         shell: python3 {0}
         run: |
-          import os
+          import os, glob
+
           pub_path = "faseeh_app/pubspec.yaml"
           with open(pub_path, "r", encoding="utf-8") as f:
               pub_text = f.read()
@@ -54,8 +55,19 @@ jobs:
               with open(man_path, "r", encoding="utf-8") as f:
                   man_text = f.read()
               man_text = man_text.replace('android:label="faseeh_app"', 'android:label="عالم فصيح"')
+              if "INTERNET" not in man_text:
+                  man_text = man_text.replace("<application", '<uses-permission android:name="android.permission.INTERNET"/>\n    <application')
               with open(man_path, "w", encoding="utf-8") as f:
                   f.write(man_text)
+
+          for gradle_file in glob.glob("faseeh_app/android/app/build.gradle*"):
+              with open(gradle_file, "r", encoding="utf-8") as f:
+                  g_text = f.read()
+              g_text = g_text.replace("flutter.minSdkVersion", "21")
+              g_text = g_text.replace("minSdk = flutter.minSdkVersion", "minSdk = 21")
+              g_text = g_text.replace("minSdkVersion flutter.minSdkVersion", "minSdkVersion 21")
+              with open(gradle_file, "w", encoding="utf-8") as f:
+                  f.write(g_text)
 
       - name: Build Android APK
         working-directory: faseeh_app
