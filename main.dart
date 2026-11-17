@@ -340,11 +340,33 @@ class _FaseehWorldStageState extends State {
     super.dispose();
   }
 
-  void _loadYoutubeUrl(String url) {
+  void _loadYoutubeEmbed(String embedSrc) {
+    final String htmlPage = '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background-color: #000000; overflow: hidden; }
+    iframe { width: 100%; height: 100%; border: none; }
+  </style>
+</head>
+<body>
+  <iframe
+    src="$embedSrc"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen>
+  </iframe>
+</body>
+</html>
+''';
     final WebViewController ctrl = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF000000))
-      ..loadRequest(Uri.parse(url));
+      ..setUserAgent('Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+      ..loadHtmlString(htmlPage, baseUrl: 'https://www.youtube.com');
     setState(() {
       _webController = ctrl;
     });
@@ -543,7 +565,6 @@ class _FaseehWorldStageState extends State {
     return _buildMainLobby();
   }
 
-  // الشاشة الرئيسية بالأيقونات الدائرية الخمس
   Widget _buildMainLobby() {
     return Center(
       child: SingleChildScrollView(
@@ -609,7 +630,7 @@ class _FaseehWorldStageState extends State {
                   _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ بِاللُّغَةِ الإِنْجِلِيزِيَّةِ! اخْتَرِ السُّورَةَ لِلْمُشَاهَدَةِ!';
                   _stars += 5;
                 });
-                _loadYoutubeUrl('https://www.youtube.com/embed/${first.videoId}?autoplay=1&rel=0');
+                _loadYoutubeEmbed('https://www.youtube.com/embed/${first.videoId}?autoplay=1&rel=0');
               },
             ),
             const SizedBox(width: 14),
@@ -627,7 +648,7 @@ class _FaseehWorldStageState extends State {
                   _owlBubble = 'اسْتَمِعْ وَرَدِّدْ تِلَاوَةَ القُرْآنِ الكَرِيمِ بِصَوْتٍ عَذْبٍ!';
                   _stars += 5;
                 });
-                _loadYoutubeUrl('https://www.youtube.com/embed/videoseries?list=PLAlCUgIGlphRU9Qc1IbmubwpYzyckh_ol&autoplay=1');
+                _loadYoutubeEmbed('https://www.youtube.com/embed/videoseries?list=PLAlCUgIGlphRU9Qc1IbmubwpYzyckh_ol&autoplay=1');
               },
             ),
           ],
@@ -705,7 +726,6 @@ class _FaseehWorldStageState extends State {
     );
   }
 
-  // شاشة تلاوة القرآن (قائمة التشغيل المباشرة داخل التطبيق)
   Widget _buildRecitationStage() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
@@ -727,7 +747,6 @@ class _FaseehWorldStageState extends State {
     );
   }
 
-  // شاشة تفسير القرآن بالإنجليزية
   Widget _buildTafsirStage() {
     final TafsirVideoItem activeItem = _tafsirVideos[_selectedTafsirIndex] as TafsirVideoItem;
     return Padding(
@@ -808,7 +827,7 @@ class _FaseehWorldStageState extends State {
                                   _stars += 3;
                                   _owlBubble = 'تُشَاهِدُ الآنَ تَفْسِيرَ: ${surah.arabicTitle} (${surah.englishTitle})';
                                 });
-                                _loadYoutubeUrl('https://www.youtube.com/embed/${surah.videoId}?autoplay=1&rel=0');
+                                _loadYoutubeEmbed('https://www.youtube.com/embed/${surah.videoId}?autoplay=1&rel=0');
                               },
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
