@@ -33,7 +33,7 @@ jobs:
           cp *.png faseeh_app/assets/images/ || true
           cp *.jpg faseeh_app/assets/images/ || true
           cd faseeh_app
-          flutter pub add audioplayers
+          flutter pub add audioplayers youtube_player_flutter
 
       - name: Configure Assets and App Label
         shell: python3 {0}
