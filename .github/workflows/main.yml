@@ -33,13 +33,12 @@ jobs:
           cp *.png faseeh_app/assets/images/ || true
           cp *.jpg faseeh_app/assets/images/ || true
           cd faseeh_app
-          flutter pub add audioplayers youtube_player_flutter
+          flutter pub add audioplayers webview_flutter
 
-      - name: Configure Assets, App Label and Android YouTube Support
+      - name: Configure Assets and App Label
         shell: python3 {0}
         run: |
-          import os, glob
-
+          import os
           pub_path = "faseeh_app/pubspec.yaml"
           with open(pub_path, "r", encoding="utf-8") as f:
               pub_text = f.read()
@@ -59,15 +58,6 @@ jobs:
                   man_text = man_text.replace("<application", '<uses-permission android:name="android.permission.INTERNET"/>\n    <application')
               with open(man_path, "w", encoding="utf-8") as f:
                   f.write(man_text)
-
-          for gradle_file in glob.glob("faseeh_app/android/app/build.gradle*"):
-              with open(gradle_file, "r", encoding="utf-8") as f:
-                  g_text = f.read()
-              g_text = g_text.replace("flutter.minSdkVersion", "21")
-              g_text = g_text.replace("minSdk = flutter.minSdkVersion", "minSdk = 21")
-              g_text = g_text.replace("minSdkVersion flutter.minSdkVersion", "minSdkVersion 21")
-              with open(gradle_file, "w", encoding="utf-8") as f:
-                  f.write(g_text)
 
       - name: Build Android APK
         working-directory: faseeh_app
