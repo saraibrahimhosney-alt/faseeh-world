@@ -118,8 +118,9 @@ class FaseehWorldStage extends StatefulWidget {
 class _FaseehWorldStageState extends State {
   final AudioPlayer _player = AudioPlayer();
   YoutubePlayerController? _ytController;
+  YoutubePlayerController? _recitationController;
 
-  int _screenIndex = 0; // 0: الرئيسية, 1: الأناشيد, 2: القصص, 3: الألعاب, 4: تفسير القرآن بالإنجليزية
+  int _screenIndex = 0; // 0: الرئيسية, 1: الأناشيد, 2: القصص, 3: الألعاب, 4: التفسير بالإنجليزية, 5: تلاوة القرآن
   int _stars = 30;
   bool _isPlaying = false;
   bool _owlBounce = false;
@@ -129,6 +130,29 @@ class _FaseehWorldStageState extends State {
   int _selectedBookIndex = -1;
   int _currentPageIndex = 0;
   int _selectedTafsirIndex = 0;
+  int _recitationPlaylistIndex = 0;
+
+  // قائمة التلاوة الخاصة بالقناة (Quran Recitation)
+  final List _recitationIds = const [
+    'bP1jjGxwdEs',
+    'enlsnMoMAsI',
+    '7ITyHlnzUkY',
+    'FN6R21YEyeA',
+    '3gbEFfKW-UM',
+    'BqVobCoQv4I',
+    'zav5SzRNPCs',
+    'FzPKrwNrh_A',
+    'JI8z72h5sUA',
+    'gNaPoAU2ojg',
+    'MORw76wrIMU',
+    'yjomUlM-MZU',
+    'KBXMbrZijsM',
+    'LRK987yfTPQ',
+    'CS_86YCKaFY',
+    'EYHSmenebc8',
+    'rKnOWbZ6OjA',
+    '5DTT5UPnU9Q',
+  ];
 
   final List _tafsirVideos = const [
     TafsirVideoItem(
@@ -338,6 +362,7 @@ class _FaseehWorldStageState extends State {
   void dispose() {
     _player.dispose();
     _ytController?.dispose();
+    _recitationController?.dispose();
     super.dispose();
   }
 
@@ -354,6 +379,22 @@ class _FaseehWorldStageState extends State {
       );
     } else {
       _ytController!.load(item.videoId);
+    }
+  }
+
+  void _initRecitationPlayer(int index) {
+    final String vid = _recitationIds[index].toString();
+    if (_recitationController == null) {
+      _recitationController = YoutubePlayerController(
+        initialVideoId: vid,
+        flags: const YoutubePlayerFlags(
+          autoPlay: true,
+          mute: false,
+          enableCaption: true,
+        ),
+      );
+    } else {
+      _recitationController!.load(vid);
     }
   }
 
@@ -433,6 +474,7 @@ class _FaseehWorldStageState extends State {
                 ),
                 onPressed: () {
                   _ytController?.pause();
+                  _recitationController?.pause();
                   setState(() {
                     if (_screenIndex == 2 && _selectedBookIndex != -1) {
                       _selectedBookIndex = -1;
@@ -544,16 +586,18 @@ class _FaseehWorldStageState extends State {
       return _buildGamesStage();
     } else if (_screenIndex == 4) {
       return _buildTafsirStage();
+    } else if (_screenIndex == 5) {
+      return _buildRecitationStage();
     }
     return _buildMainLobby();
   }
 
-  // الشاشة الرئيسية بالأيقونات الدائرية الأربع
+  // الشاشة الرئيسية بالأيقونات الدائرية الخمس
   Widget _buildMainLobby() {
     return Center(
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -570,7 +614,7 @@ class _FaseehWorldStageState extends State {
                 _playMedia('song_alphabet.mp3', 'هَيَّا نُغَنِّي مَعاً أَنَاشِيدَ عَالَمِ فَصِيح!', 2);
               },
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 14),
             _buildCircularIconPortal(
               label: '📖 القصص',
               subLabel: 'حكايات مصوّرة',
@@ -585,7 +629,7 @@ class _FaseehWorldStageState extends State {
                 _playMedia('story_rabbit.mp3', 'اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ لِتَفْتَحَ صَفَحَاتِهَا الكَبِيرَةَ!', 2);
               },
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 14),
             _buildCircularIconPortal(
               label: '🎮 الألعاب',
               subLabel: 'تحديات ونجوم',
@@ -598,10 +642,10 @@ class _FaseehWorldStageState extends State {
                 });
               },
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 14),
             _buildCircularIconPortal(
               label: '🕌 تفسير القرآن',
-              subLabel: 'Quran Tafsir in English',
+              subLabel: 'Tafsir in English',
               imagePath: 'assets/images/card_stories.png',
               ringColor: const Color(0xFF059669),
               badgeBg: const Color(0xFFECFDF5),
@@ -610,10 +654,28 @@ class _FaseehWorldStageState extends State {
                 setState(() {
                   _isPlaying = false;
                   _screenIndex = 4;
-                  _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ بِاللُّغَةِ الإِنْجِلِيزِيَّةِ لِلْأَطْفَالِ! اخْتَرِ السُّورَةَ لِلْمُشَاهَدَةِ!';
+                  _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ بِاللُّغَةِ الإِنْجِلِيزِيَّةِ! اخْتَرِ السُّورَةَ لِلْمُشَاهَدَةِ!';
                   _stars += 5;
                 });
                 _initYoutubeForIndex(_selectedTafsirIndex);
+              },
+            ),
+            const SizedBox(width: 14),
+            _buildCircularIconPortal(
+              label: '🎧 تلاوة القرآن',
+              subLabel: 'Quran Recitation',
+              imagePath: 'assets/images/card_songs.png',
+              ringColor: const Color(0xFF0284C7),
+              badgeBg: const Color(0xFFF0F9FF),
+              onTap: () async {
+                await _player.stop();
+                setState(() {
+                  _isPlaying = false;
+                  _screenIndex = 5;
+                  _owlBubble = 'اسْتَمِعْ وَرَدِّدْ تِلَاوَةَ القُرْآنِ الكَرِيمِ بِصَوْتٍ عَذْبٍ!';
+                  _stars += 5;
+                });
+                _initRecitationPlayer(_recitationPlaylistIndex);
               },
             ),
           ],
@@ -636,13 +698,13 @@ class _FaseehWorldStageState extends State {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 146,
-            height: 146,
-            padding: const EdgeInsets.all(5),
+            width: 132,
+            height: 132,
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white,
-              border: Border.all(color: ringColor, width: 5.5),
+              border: Border.all(color: ringColor, width: 5),
               boxShadow: const [
                 BoxShadow(color: Colors.black45, blurRadius: 12, offset: Offset(0, 6)),
               ],
@@ -654,12 +716,12 @@ class _FaseehWorldStageState extends State {
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 9),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: badgeBg,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(color: ringColor, width: 3),
               boxShadow: const [
                 BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 4)),
@@ -670,7 +732,7 @@ class _FaseehWorldStageState extends State {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16.5,
                     fontWeight: FontWeight.bold,
                     color: ringColor,
                   ),
@@ -678,7 +740,7 @@ class _FaseehWorldStageState extends State {
                 Text(
                   subLabel,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF475569),
                   ),
@@ -691,7 +753,105 @@ class _FaseehWorldStageState extends State {
     );
   }
 
-  // شاشة تفسير القرآن بالإنجليزية (فيديو يوتيوب يمين + قائمة السور يسار)
+  // شاشة تلاوة القرآن (الطريقة الثانية: مشغل مدمج داخل التطبيق مع أزرار السورة السابقة والتالية)
+  Widget _buildRecitationStage() {
+    final bool isFirst = _recitationPlaylistIndex == 0;
+    final bool isLast = _recitationPlaylistIndex == _recitationIds.length - 1;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withAlpha(245),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFF0284C7), width: 4.5),
+          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 14)],
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: _recitationController != null
+                    ? YoutubePlayer(
+                        controller: _recitationController!,
+                        showVideoProgressIndicator: true,
+                        progressIndicatorColor: const Color(0xFF0284C7),
+                        onEnded: (_) {
+                          if (!isLast) {
+                            setState(() {
+                              _recitationPlaylistIndex += 1;
+                              _stars += 5;
+                            });
+                            _initRecitationPlayer(_recitationPlaylistIndex);
+                          }
+                        },
+                      )
+                    : const Center(child: CircularProgressIndicator()),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isFirst ? Colors.grey.shade300 : const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  onPressed: isFirst
+                      ? null
+                      : () {
+                          setState(() {
+                            _recitationPlaylistIndex -= 1;
+                          });
+                          _initRecitationPlayer(_recitationPlaylistIndex);
+                        },
+                  icon: const Icon(Icons.skip_previous_rounded, size: 26),
+                  label: const Text('التلاوة السابقة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0F2FE),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF0284C7), width: 2),
+                  ),
+                  child: Text(
+                    '🎧 تلاوة القرآن الكريم (${_recitationPlaylistIndex + 1} / ${_recitationIds.length})',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0369A1)),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isLast ? Colors.grey.shade300 : const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  onPressed: isLast
+                      ? null
+                      : () {
+                          setState(() {
+                            _recitationPlaylistIndex += 1;
+                            _stars += 3;
+                          });
+                          _initRecitationPlayer(_recitationPlaylistIndex);
+                        },
+                  icon: const Icon(Icons.skip_next_rounded, size: 26),
+                  label: const Text('التلاوة التالية (+3 ⭐)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // شاشة تفسير القرآن بالإنجليزية
   Widget _buildTafsirStage() {
     final TafsirVideoItem activeItem = _tafsirVideos[_selectedTafsirIndex] as TafsirVideoItem;
     return Padding(
