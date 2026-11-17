@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -117,8 +117,7 @@ class FaseehWorldStage extends StatefulWidget {
 
 class _FaseehWorldStageState extends State {
   final AudioPlayer _player = AudioPlayer();
-  YoutubePlayerController? _ytController;
-  YoutubePlayerController? _recitationController;
+  WebViewController? _webController;
 
   int _screenIndex = 0; // 0: الرئيسية, 1: الأناشيد, 2: القصص, 3: الألعاب, 4: التفسير بالإنجليزية, 5: تلاوة القرآن
   int _stars = 30;
@@ -130,29 +129,6 @@ class _FaseehWorldStageState extends State {
   int _selectedBookIndex = -1;
   int _currentPageIndex = 0;
   int _selectedTafsirIndex = 0;
-  int _recitationPlaylistIndex = 0;
-
-  // قائمة التلاوة الخاصة بالقناة (Quran Recitation)
-  final List _recitationIds = const [
-    'bP1jjGxwdEs',
-    'enlsnMoMAsI',
-    '7ITyHlnzUkY',
-    'FN6R21YEyeA',
-    '3gbEFfKW-UM',
-    'BqVobCoQv4I',
-    'zav5SzRNPCs',
-    'FzPKrwNrh_A',
-    'JI8z72h5sUA',
-    'gNaPoAU2ojg',
-    'MORw76wrIMU',
-    'yjomUlM-MZU',
-    'KBXMbrZijsM',
-    'LRK987yfTPQ',
-    'CS_86YCKaFY',
-    'EYHSmenebc8',
-    'rKnOWbZ6OjA',
-    '5DTT5UPnU9Q',
-  ];
 
   final List _tafsirVideos = const [
     TafsirVideoItem(
@@ -361,41 +337,17 @@ class _FaseehWorldStageState extends State {
   @override
   void dispose() {
     _player.dispose();
-    _ytController?.dispose();
-    _recitationController?.dispose();
     super.dispose();
   }
 
-  void _initYoutubeForIndex(int index) {
-    final TafsirVideoItem item = _tafsirVideos[index] as TafsirVideoItem;
-    if (_ytController == null) {
-      _ytController = YoutubePlayerController(
-        initialVideoId: item.videoId,
-        flags: const YoutubePlayerFlags(
-          autoPlay: true,
-          mute: false,
-          enableCaption: true,
-        ),
-      );
-    } else {
-      _ytController!.load(item.videoId);
-    }
-  }
-
-  void _initRecitationPlayer(int index) {
-    final String vid = _recitationIds[index].toString();
-    if (_recitationController == null) {
-      _recitationController = YoutubePlayerController(
-        initialVideoId: vid,
-        flags: const YoutubePlayerFlags(
-          autoPlay: true,
-          mute: false,
-          enableCaption: true,
-        ),
-      );
-    } else {
-      _recitationController!.load(vid);
-    }
+  void _loadYoutubeUrl(String url) {
+    final WebViewController ctrl = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF000000))
+      ..loadRequest(Uri.parse(url));
+    setState(() {
+      _webController = ctrl;
+    });
   }
 
   Future _playMedia(String fileName, String bubbleText, int bonusStars) async {
@@ -473,12 +425,11 @@ class _FaseehWorldStageState extends State {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
                 onPressed: () {
-                  _ytController?.pause();
-                  _recitationController?.pause();
                   setState(() {
                     if (_screenIndex == 2 && _selectedBookIndex != -1) {
                       _selectedBookIndex = -1;
                     } else {
+                      _webController = null;
                       _screenIndex = 0;
                     }
                   });
@@ -651,13 +602,14 @@ class _FaseehWorldStageState extends State {
               badgeBg: const Color(0xFFECFDF5),
               onTap: () async {
                 await _player.stop();
+                final TafsirVideoItem first = _tafsirVideos[_selectedTafsirIndex] as TafsirVideoItem;
                 setState(() {
                   _isPlaying = false;
                   _screenIndex = 4;
                   _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ بِاللُّغَةِ الإِنْجِلِيزِيَّةِ! اخْتَرِ السُّورَةَ لِلْمُشَاهَدَةِ!';
                   _stars += 5;
                 });
-                _initYoutubeForIndex(_selectedTafsirIndex);
+                _loadYoutubeUrl('https://www.youtube.com/embed/${first.videoId}?autoplay=1&rel=0');
               },
             ),
             const SizedBox(width: 14),
@@ -675,7 +627,7 @@ class _FaseehWorldStageState extends State {
                   _owlBubble = 'اسْتَمِعْ وَرَدِّدْ تِلَاوَةَ القُرْآنِ الكَرِيمِ بِصَوْتٍ عَذْبٍ!';
                   _stars += 5;
                 });
-                _initRecitationPlayer(_recitationPlaylistIndex);
+                _loadYoutubeUrl('https://www.youtube.com/embed/videoseries?list=PLAlCUgIGlphRU9Qc1IbmubwpYzyckh_ol&autoplay=1');
               },
             ),
           ],
@@ -753,99 +705,23 @@ class _FaseehWorldStageState extends State {
     );
   }
 
-  // شاشة تلاوة القرآن (الطريقة الثانية: مشغل مدمج داخل التطبيق مع أزرار السورة السابقة والتالية)
+  // شاشة تلاوة القرآن (قائمة التشغيل المباشرة داخل التطبيق)
   Widget _buildRecitationStage() {
-    final bool isFirst = _recitationPlaylistIndex == 0;
-    final bool isLast = _recitationPlaylistIndex == _recitationIds.length - 1;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white.withAlpha(245),
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: const Color(0xFF0284C7), width: 4.5),
           boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 14)],
         ),
-        child: Column(
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: _recitationController != null
-                    ? YoutubePlayer(
-                        controller: _recitationController!,
-                        showVideoProgressIndicator: true,
-                        progressIndicatorColor: const Color(0xFF0284C7),
-                        onEnded: (_) {
-                          if (!isLast) {
-                            setState(() {
-                              _recitationPlaylistIndex += 1;
-                              _stars += 5;
-                            });
-                            _initRecitationPlayer(_recitationPlaylistIndex);
-                          }
-                        },
-                      )
-                    : const Center(child: CircularProgressIndicator()),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isFirst ? Colors.grey.shade300 : const Color(0xFF0284C7),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  onPressed: isFirst
-                      ? null
-                      : () {
-                          setState(() {
-                            _recitationPlaylistIndex -= 1;
-                          });
-                          _initRecitationPlayer(_recitationPlaylistIndex);
-                        },
-                  icon: const Icon(Icons.skip_previous_rounded, size: 26),
-                  label: const Text('التلاوة السابقة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0F2FE),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF0284C7), width: 2),
-                  ),
-                  child: Text(
-                    '🎧 تلاوة القرآن الكريم (${_recitationPlaylistIndex + 1} / ${_recitationIds.length})',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0369A1)),
-                  ),
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isLast ? Colors.grey.shade300 : const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  onPressed: isLast
-                      ? null
-                      : () {
-                          setState(() {
-                            _recitationPlaylistIndex += 1;
-                            _stars += 3;
-                          });
-                          _initRecitationPlayer(_recitationPlaylistIndex);
-                        },
-                  icon: const Icon(Icons.skip_next_rounded, size: 26),
-                  label: const Text('التلاوة التالية (+3 ⭐)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-              ],
-            ),
-          ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: _webController != null
+              ? WebViewWidget(controller: _webController!)
+              : const Center(child: CircularProgressIndicator()),
         ),
       ),
     );
@@ -873,12 +749,8 @@ class _FaseehWorldStageState extends State {
                   Expanded(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(18),
-                      child: _ytController != null
-                          ? YoutubePlayer(
-                              controller: _ytController!,
-                              showVideoProgressIndicator: true,
-                              progressIndicatorColor: const Color(0xFF059669),
-                            )
+                      child: _webController != null
+                          ? WebViewWidget(controller: _webController!)
                           : const Center(child: CircularProgressIndicator()),
                     ),
                   ),
@@ -936,7 +808,7 @@ class _FaseehWorldStageState extends State {
                                   _stars += 3;
                                   _owlBubble = 'تُشَاهِدُ الآنَ تَفْسِيرَ: ${surah.arabicTitle} (${surah.englishTitle})';
                                 });
-                                _initYoutubeForIndex(index);
+                                _loadYoutubeUrl('https://www.youtube.com/embed/${surah.videoId}?autoplay=1&rel=0');
                               },
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
