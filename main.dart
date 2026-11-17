@@ -29,18 +29,29 @@ class SongItem {
   });
 }
 
-class StoryItem {
+class StoryPageData {
+  final String text;
+  final String emoji;
+  final Color bgTint;
+  const StoryPageData({
+    required this.text,
+    required this.emoji,
+    required this.bgTint,
+  });
+}
+
+class StoryBookItem {
   final String title;
   final String moral;
-  final String summary;
   final String audioFile;
   final Color color;
-  const StoryItem({
+  final List pages;
+  const StoryBookItem({
     required this.title,
     required this.moral,
-    required this.summary,
     required this.audioFile,
     required this.color,
+    required this.pages,
   });
 }
 
@@ -92,12 +103,15 @@ class FaseehWorldStage extends StatefulWidget {
 
 class _FaseehWorldStageState extends State {
   final AudioPlayer _player = AudioPlayer();
-  int _screenIndex = 0; // 0: الساحة الرئيسية, 1: الأناشيد, 2: القصص, 3: الألعاب
+  int _screenIndex = 0; // 0: الرئيسية, 1: الأناشيد, 2: مكتبة القصص, 3: الألعاب
   int _stars = 30;
   bool _isPlaying = false;
   bool _owlBounce = false;
   String _currentTrack = 'welcome.mp3';
   String _owlBubble = 'أَهْلاً بِكَ فِي عَالَمِ فَصِيح! اخْتَرْ جَزِيرَةَ الأَنَاشِيدِ أَوِ القِصَصِ أَوِ الأَلْعَابِ!';
+
+  int _selectedBookIndex = -1; // -1: عرض رف الكتب, 0 أو 1: فتح الكتاب بملء الشاشة
+  int _currentPageIndex = 0;
 
   final List _songs = const [
     SongItem(
@@ -126,20 +140,57 @@ class _FaseehWorldStageState extends State {
     ),
   ];
 
-  final List _stories = const [
-    StoryItem(
+  final List _books = const [
+    StoryBookItem(
       title: 'الأَرْنَبُ الصَّغِيرُ وَسِرُّ الجَزَرَةِ الذَّهَبِيَّةِ',
-      moral: 'بِالتَّعَاوُنِ وَالكَلِمَةِ الطَّيِّبَةِ نُنْجِزُ أَصْعَبَ المَهَامِّ',
-      summary: 'حِكَايَةٌ مَرِحَةٌ عَنْ تَعَاوُنِ أَصْدِقَاءِ الغَابَةِ المَضِيئَةِ لإِخْرَاجِ الجَزَرَةِ الذَّهَبِيَّةِ.',
+      moral: 'الحِكْمَةُ: بِالتَّعَاوُنِ وَالكَلِمَةِ الطَّيِّبَةِ نُنْجِزُ أَصْعَبَ المَهَامِّ!',
       audioFile: 'story_rabbit.mp3',
-      color: Color(0xFF10B981),
+      color: Color(0xFF059669),
+      pages: [
+        StoryPageData(
+          text: 'فِي صَبَاحٍ مُشْرِقٍ جَمِيلٍ، خَرَجَ الأَرْنَبُ الصَّغِيرُ «فَصِيحٌ» يَبْحَثُ عَنْ طَعَامٍ لَذِيذٍ فِي الحَقْلِ الأَخْضَرِ الوَاسِعِ.',
+          emoji: '🐰🌞🌿',
+          bgTint: Color(0xFFECFDF5),
+        ),
+        StoryPageData(
+          text: 'فَجْأَةً، وَجَدَ فَصِيحٌ جَزَرَةً كَبِيرَةً تَلْمَعُ تَحْتَ أَشِعَّةِ الشَّمْسِ، لَكِنَّهَا كَانَتْ عَالِقَةً بِقُوَّةٍ فِي التُّرْبَةِ!',
+          emoji: '🥕✨😲',
+          bgTint: Color(0xFFFFFBEB),
+        ),
+        StoryPageData(
+          text: 'نَادَى فَصِيحٌ أَصْدِقَاءَهُ السِّنْجَابَ وَالسُّلَحْفَاةَ، وَقَالَ بِلُطْفٍ وَأَدَبٍ: «هَلْ تُسَاعِدُونَنِي يَا أَصْدِقَائِي؟».',
+          emoji: '🐿️🐢💬',
+          bgTint: Color(0xFFF0F9FF),
+        ),
+        StoryPageData(
+          text: 'تَعَاوَنَ الجَمِيعُ بِهِمَّةٍ وَنَشَاطٍ حَتَّى أَخْرَجُوا الجَزَرَةَ الذَّهَبِيَّةَ، وَتَقَاسَمُوهَا بِسَعَادَةٍ وَمَحَبَّةٍ كَبِيرَةٍ!',
+          emoji: '🎉🥕❤️',
+          bgTint: Color(0xFFFDF2F8),
+        ),
+      ],
     ),
-    StoryItem(
+    StoryBookItem(
       title: 'البُومُ الحَكِيمُ وَطَائِرُ البُلْبُلِ المُغَرِّدِ',
-      moral: 'الثِّقَةُ بِالنَّفْسِ وَالمُحَاوَلَةُ المُسْتَمِرَّةُ تَصْنَعُ الإِبْدَاعَ',
-      summary: 'كَيْفَ شَجَّعَ البُومُ الحَكِيمُ البُلْبُلَ الصَّغِيرَ حَتَّى غَرَّدَ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ.',
+      moral: 'الحِكْمَةُ: الثِّقَةُ بِالنَّفْسِ وَالمُحَاوَلَةُ المُسْتَمِرَّةُ تَصْنَعُ الإِبْدَاعَ!',
       audioFile: 'story_owl.mp3',
       color: Color(0xFF7C3AED),
+      pages: [
+        StoryPageData(
+          text: 'فِي الغَابَةِ المَضِيئَةِ، كَانَ البُلْبُلُ الصَّغِيرُ يَخْجَلُ مِنَ الغِنَاءِ أَمَامَ طُيُورِ الغَابَةِ خَوْفاً مِنَ الخَطَأِ.',
+          emoji: '🐦🙈🌳',
+          bgTint: Color(0xFFF5F3FF),
+        ),
+        StoryPageData(
+          text: 'اقْتَرَبَ مِنْهُ البُومُ الحَكِيمُ «فَصِيحٌ» وَقَالَ لَهُ بِابْتِسَامَةٍ دَافِئَةٍ: «صَوْتُكَ جَمِيلٌ يَا بُنَيَّ، وَالتَّجْرِبَةُ هِيَ طَرِيقُ النَّجَاحِ!».',
+          emoji: '🦉💛✨',
+          bgTint: Color(0xFFFFFBEB),
+        ),
+        StoryPageData(
+          text: 'تَشَجَّعَ البُلْبُلُ وَانْطَلَقَ يُغَرِّدُ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ، فَصَفَّقَتْ لَهُ الطُّيُورُ بِإِعْجَابٍ وَفَرَحٍ شَدِيدٍ!',
+          emoji: '🎶🐦👏',
+          bgTint: Color(0xFFECFDF5),
+        ),
+      ],
     ),
   ];
 
@@ -226,7 +277,7 @@ class _FaseehWorldStageState extends State {
             fit: BoxFit.cover,
           ),
           Container(
-            color: Colors.black.withAlpha(55),
+            color: Colors.black.withAlpha(45),
           ),
           SafeArea(
             child: Column(
@@ -255,16 +306,27 @@ class _FaseehWorldStageState extends State {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFF59E0B),
                   foregroundColor: Colors.white,
+                  elevation: 4,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
                 onPressed: () {
                   setState(() {
-                    _screenIndex = 0;
+                    if (_screenIndex == 2 && _selectedBookIndex != -1) {
+                      _selectedBookIndex = -1;
+                    } else {
+                      _screenIndex = 0;
+                    }
                   });
                 },
-                icon: const Icon(Icons.home_rounded, size: 26),
-                label: const Text('الرئيسية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                icon: Icon(
+                  (_screenIndex == 2 && _selectedBookIndex != -1) ? Icons.menu_book_rounded : Icons.home_rounded,
+                  size: 26,
+                ),
+                label: Text(
+                  (_screenIndex == 2 && _selectedBookIndex != -1) ? 'المكتبة' : 'الرئيسية',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
             ),
           GestureDetector(
@@ -278,14 +340,15 @@ class _FaseehWorldStageState extends State {
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFFBBF24), width: 3),
+                  border: Border.all(color: const Color(0xFFFBBF24), width: 3.5),
                   color: Colors.white,
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
                 ),
                 child: ClipOval(
                   child: Image.asset(
                     'assets/images/owl_mascot.png',
-                    width: 52,
-                    height: 52,
+                    width: 54,
+                    height: 54,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -295,11 +358,12 @@ class _FaseehWorldStageState extends State {
           const SizedBox(width: 10),
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(235),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF38BDF8), width: 2),
+                color: Colors.white.withAlpha(242),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFF38BDF8), width: 2.5),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
               ),
               child: Text(
                 _owlBubble,
@@ -307,7 +371,7 @@ class _FaseehWorldStageState extends State {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 14.5,
                   color: Color(0xFF0F172A),
                 ),
               ),
@@ -317,6 +381,7 @@ class _FaseehWorldStageState extends State {
           IconButton.filled(
             style: IconButton.styleFrom(
               backgroundColor: _isPlaying ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+              padding: const EdgeInsets.all(10),
             ),
             onPressed: _toggleStopPlay,
             icon: Icon(_isPlaying ? Icons.stop_rounded : Icons.volume_up_rounded, size: 28),
@@ -325,9 +390,10 @@ class _FaseehWorldStageState extends State {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
+              gradient: const LinearGradient(colors: [Color(0xFFFBBF24), Color(0xFFD97706)]),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white, width: 2),
+              border: Border.all(color: Colors.white, width: 2.5),
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
             ),
             child: Row(
               children: [
@@ -348,7 +414,10 @@ class _FaseehWorldStageState extends State {
     if (_screenIndex == 1) {
       return _buildSongsStage();
     } else if (_screenIndex == 2) {
-      return _buildStoriesStage();
+      if (_selectedBookIndex == -1) {
+        return _buildBookshelfStage();
+      }
+      return _buildOpenBookViewer(_books[_selectedBookIndex] as StoryBookItem);
     } else if (_screenIndex == 3) {
       return _buildGamesStage();
     }
@@ -379,15 +448,16 @@ class _FaseehWorldStageState extends State {
           Expanded(
             flex: 3,
             child: _buildPortalCard(
-              title: '📖 حكايات الغابة المسموعة',
-              subtitle: 'قصص شيّقة بالصوت الدافئ',
+              title: '📖 مكتبة القصص المصوّرة',
+              subtitle: 'اقرأ واقلب الصفحات واستمع للحكاية',
               imagePath: 'assets/images/card_stories.png',
               borderColor: const Color(0xFF8B5CF6),
               onTap: () {
                 setState(() {
                   _screenIndex = 2;
+                  _selectedBookIndex = -1;
                 });
-                _playMedia('story_rabbit.mp3', 'اجْلِسْ بِهُدُوءٍ وَاسْتَمِعْ إِلَى حِكَايَاتِ الغَابَةِ المَضِيئَةِ!', 2);
+                _playMedia('story_rabbit.mp3', 'اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ لِتَفْتَحَ صَفَحَاتِهَا الكَبِيرَةَ!', 2);
               },
             ),
           ),
@@ -412,14 +482,14 @@ class _FaseehWorldStageState extends State {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: borderColor, width: 4),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: borderColor, width: 4.5),
           boxShadow: const [
-            BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 5)),
+            BoxShadow(color: Colors.black45, blurRadius: 12, offset: Offset(0, 6)),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(25),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -428,12 +498,12 @@ class _FaseehWorldStageState extends State {
                 alignment: Alignment.bottomCenter,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [Colors.black.withAlpha(210), Colors.transparent],
+                      colors: [Colors.black.withAlpha(220), Colors.transparent],
                     ),
                   ),
                   child: Column(
@@ -442,12 +512,12 @@ class _FaseehWorldStageState extends State {
                       Text(
                         title,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 19),
                       ),
                       Text(
                         subtitle,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Color(0xFFFDE68A), fontSize: 13, fontWeight: FontWeight.w600),
+                        style: const TextStyle(color: Color(0xFFFDE68A), fontSize: 13.5, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -474,36 +544,348 @@ class _FaseehWorldStageState extends State {
             end: Alignment.bottomRight,
             colors: [Color(0xFF0284C7), Color(0xFF059669)],
           ),
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFFBBF24), width: 4),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: const Color(0xFFFBBF24), width: 4.5),
           boxShadow: const [
-            BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 5)),
+            BoxShadow(color: Colors.black45, blurRadius: 12, offset: Offset(0, 6)),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ClipOval(
-              child: Image.asset(
-                'assets/images/owl_mascot.png',
-                width: 96,
-                height: 96,
-                fit: BoxFit.cover,
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/owl_mascot.png',
+                  width: 96,
+                  height: 96,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             const SizedBox(height: 12),
             const Text(
               '🎮 تحديات فصيح',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 19),
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
             ),
             const SizedBox(height: 6),
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8),
+              padding: EdgeInsets.symmetric(horizontal: 10),
               child: Text(
                 'العب واجمع النجوم الذهبية!',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFFFEF08A), fontWeight: FontWeight.bold, fontSize: 13),
+                style: TextStyle(color: Color(0xFFFEF08A), fontWeight: FontWeight.bold, fontSize: 13.5),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookshelfStage() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 18),
+      child: Row(
+        children: List.generate(_books.length, (int i) {
+          final StoryBookItem book = _books[i] as StoryBookItem;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedBookIndex = i;
+                    _currentPageIndex = 0;
+                  });
+                  _playMedia(book.audioFile, 'تقرأ وتستمع الآن إلى: ${book.title}', 5);
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(color: book.color, width: 5),
+                    boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 14, offset: Offset(0, 6))],
+                  ),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.asset('assets/images/card_stories.png', fit: BoxFit.cover),
+                              Positioned(
+                                top: 12,
+                                right: 12,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: book.color,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    '📖 ${book.pages.length} صفحات مصورة',
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                book.title,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: book.color),
+                              ),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: book.color,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedBookIndex = i;
+                                      _currentPageIndex = 0;
+                                    });
+                                    _playMedia(book.audioFile, 'تقرأ وتستمع الآن إلى: ${book.title}', 5);
+                                  },
+                                  icon: const Icon(Icons.auto_stories_rounded, size: 26),
+                                  label: const Text('افتح الكتاب واقرأ القصة', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildOpenBookViewer(StoryBookItem book) {
+    final StoryPageData page = book.pages[_currentPageIndex] as StoryPageData;
+    final bool isFirstPage = _currentPageIndex == 0;
+    final bool isLastPage = _currentPageIndex == book.pages.length - 1;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFDF7),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: book.color, width: 5),
+          boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 18, offset: Offset(0, 8))],
+        ),
+        child: Column(
+          children: [
+            // شريط عنوان القصة أعلى الكتاب
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(
+                color: book.color,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 26),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      book.title,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 19),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(50),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      'صفحة ${_currentPageIndex + 1} من ${book.pages.length}',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // محتوى الصفحة المفتوحة (مشهد مصوّر يمين + نص كبير يسار)
+            Expanded(
+              child: Row(
+                children: [
+                  // الصفحة اليمنى: المشهد الكرتوني والرموز التعبيرية الكبيرة
+                  Expanded(
+                    flex: 4,
+                    child: Container(
+                      margin: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: page.bgTint,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: book.color.withAlpha(110), width: 3),
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(21),
+                            child: Opacity(
+                              opacity: 0.35,
+                              child: Image.asset('assets/images/card_stories.png', fit: BoxFit.cover),
+                            ),
+                          ),
+                          Center(
+                            child: Text(
+                              page.emoji,
+                              style: const TextStyle(fontSize: 64),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // خط فاصل يشبه طيّة الكتاب المفتوح
+                  Container(
+                    width: 3,
+                    margin: const EdgeInsets.symmetric(vertical: 16),
+                    color: book.color.withAlpha(60),
+                  ),
+
+                  // الصفحة اليسرى: نص القصة بخط كبير ومريح للقراءة
+                  Expanded(
+                    flex: 6,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Center(
+                              child: SingleChildScrollView(
+                                child: Text(
+                                  page.text,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 27,
+                                    height: 1.7,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (isLastPage)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFF59E0B), width: 2),
+                              ),
+                              child: Text(
+                                '🌟 ${book.moral}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF92400E),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // أزرار تقليب الصفحات الكبيرة في الأسفل
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isFirstPage ? Colors.grey.shade300 : const Color(0xFF0284C7),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    ),
+                    onPressed: isFirstPage
+                        ? null
+                        : () {
+                            setState(() {
+                              _currentPageIndex -= 1;
+                            });
+                          },
+                    icon: const Icon(Icons.arrow_back_rounded, size: 28),
+                    label: const Text('الصفحة السابقة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  FilledButton.tonalIcon(
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    ),
+                    onPressed: () {
+                      _playMedia(book.audioFile, 'تستمع الآن إلى: ${book.title}', 0);
+                    },
+                    icon: Icon(_isPlaying ? Icons.graphic_eq_rounded : Icons.volume_up_rounded, size: 26),
+                    label: Text(_isPlaying ? 'الصوت يعمل...' : 'استمع للقصة 🔊', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isLastPage ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    ),
+                    onPressed: () {
+                      if (!isLastPage) {
+                        setState(() {
+                          _currentPageIndex += 1;
+                        });
+                      } else {
+                        _playMedia('bravo.mp3', 'أَحْسَنْتَ! أَنْهَيْتَ قِرَاءَةَ القِصَّةِ بِبَرَاعَةٍ! +10 نُجُوم!', 10);
+                        setState(() {
+                          _selectedBookIndex = -1;
+                        });
+                      }
+                    },
+                    icon: Icon(isLastPage ? Icons.star_rounded : Icons.arrow_forward_rounded, size: 28),
+                    label: Text(
+                      isLastPage ? 'أنهيت القصة (+10 ⭐)' : 'الصفحة التالية',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -529,9 +911,10 @@ class _FaseehWorldStageState extends State {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(242),
-                    borderRadius: BorderRadius.circular(26),
-                    border: Border.all(color: active ? const Color(0xFFF59E0B) : s.color, width: active ? 5 : 3),
+                    color: Colors.white.withAlpha(245),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: active ? const Color(0xFFF59E0B) : s.color, width: active ? 5 : 3.5),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -540,12 +923,12 @@ class _FaseehWorldStageState extends State {
                       Text(
                         s.title,
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: s.color),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: s.color),
                       ),
                       Text(
                         s.lyrics,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 13.5, height: 1.45, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                        style: const TextStyle(fontSize: 14.5, height: 1.5, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
                       ),
                       FilledButton.icon(
                         style: FilledButton.styleFrom(
@@ -569,82 +952,6 @@ class _FaseehWorldStageState extends State {
     );
   }
 
-  Widget _buildStoriesStage() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-      child: Row(
-        children: List.generate(_stories.length, (int i) {
-          final StoryItem st = _stories[i] as StoryItem;
-          final bool active = _currentTrack == st.audioFile && _isPlaying;
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(245),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: st.color, width: 4),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.asset('assets/images/card_stories.png', width: 84, height: 64, fit: BoxFit.cover),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            st.title,
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: st.color),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      st.summary,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
-                    ),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: st.color.withAlpha(30),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Text(
-                        '💡 ${st.moral}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontWeight: FontWeight.bold, color: st.color, fontSize: 14),
-                      ),
-                    ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: st.color,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () {
-                          _playMedia(st.audioFile, 'تستمع الآن إلى: ${st.title}', 8);
-                        },
-                        icon: Icon(active ? Icons.graphic_eq_rounded : Icons.headphones_rounded, size: 26),
-                        label: Text(active ? 'الراوي يحكي القصة...' : 'استمع للحكاية كاملة (+8 ⭐)', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
   Widget _buildGamesStage() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
@@ -658,17 +965,18 @@ class _FaseehWorldStageState extends State {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: Colors.white.withAlpha(245),
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: const Color(0xFFF59E0B), width: 3),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: const Color(0xFFF59E0B), width: 3.5),
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(q.emoji, style: const TextStyle(fontSize: 38)),
+                    Text(q.emoji, style: const TextStyle(fontSize: 40)),
                     Text(
                       q.question,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Color(0xFF0F172A)),
                     ),
                     Column(
                       children: List.generate(q.options.length, (int optIdx) {
@@ -681,7 +989,7 @@ class _FaseehWorldStageState extends State {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFE0F2FE),
                                 foregroundColor: const Color(0xFF0369A1),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(vertical: 9),
                               ),
                               onPressed: () {
                                 if (optIdx == q.correctIndex) {
@@ -690,7 +998,7 @@ class _FaseehWorldStageState extends State {
                                   _playMedia('try_again.mp3', 'لَا بَأْسَ يَا صَدِيقِي! حَاوِلْ مَرَّةً أُخْرَى!', 0);
                                 }
                               },
-                              child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                             ),
                           ),
                         );
