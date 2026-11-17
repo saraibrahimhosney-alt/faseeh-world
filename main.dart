@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +69,19 @@ class QuizItem {
   });
 }
 
+class TafsirVideoItem {
+  final String arabicTitle;
+  final String englishTitle;
+  final String videoId;
+  final Color color;
+  const TafsirVideoItem({
+    required this.arabicTitle,
+    required this.englishTitle,
+    required this.videoId,
+    required this.color,
+  });
+}
+
 class FaseehCartoonApp extends StatelessWidget {
   const FaseehCartoonApp({super.key});
 
@@ -103,7 +117,9 @@ class FaseehWorldStage extends StatefulWidget {
 
 class _FaseehWorldStageState extends State {
   final AudioPlayer _player = AudioPlayer();
-  int _screenIndex = 0; // 0: الرئيسية, 1: الأناشيد, 2: مكتبة القصص, 3: الألعاب
+  YoutubePlayerController? _ytController;
+
+  int _screenIndex = 0; // 0: الرئيسية, 1: الأناشيد, 2: القصص, 3: الألعاب, 4: تفسير القرآن بالإنجليزية
   int _stars = 30;
   bool _isPlaying = false;
   bool _owlBounce = false;
@@ -112,6 +128,94 @@ class _FaseehWorldStageState extends State {
 
   int _selectedBookIndex = -1;
   int _currentPageIndex = 0;
+  int _selectedTafsirIndex = 0;
+
+  final List _tafsirVideos = const [
+    TafsirVideoItem(
+      arabicTitle: '١. سورة الفاتحة',
+      englishTitle: 'Surah Al-Fatihah (The Opening)',
+      videoId: '3gbEFfKW-UM',
+      color: Color(0xFF059669),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '٢. سورة الناس',
+      englishTitle: 'Surah An-Nas (Mankind)',
+      videoId: 'BqVobCoQv4I',
+      color: Color(0xFF0284C7),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '٣. سورة الفلق',
+      englishTitle: 'Surah Al-Falaq (The Daybreak)',
+      videoId: 'zav5SzRNPCs',
+      color: Color(0xFF7C3AED),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '٤. سورة الإخلاص',
+      englishTitle: 'Surah Al-Ikhlas (The Purity)',
+      videoId: 'FzPKrwNrh_A',
+      color: Color(0xFFD97706),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '٥. سورة المسد',
+      englishTitle: 'Surah Al-Masad (The Palm Fiber)',
+      videoId: 'JI8z72h5sUA',
+      color: Color(0xFFDC2626),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '٦. سورة النصر',
+      englishTitle: 'Surah An-Nasr (The Victory)',
+      videoId: 'gNaPoAU2ojg',
+      color: Color(0xFF10B981),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '٧. سورة الكافرون',
+      englishTitle: 'Surah Al-Kafirun (The Disbelievers)',
+      videoId: 'MORw76wrIMU',
+      color: Color(0xFF2563EB),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '٨. سورة الكوثر',
+      englishTitle: 'Surah Al-Kawthar (Abundance)',
+      videoId: 'yjomUlM-MZU',
+      color: Color(0xFFDB2777),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '٩. سورة الماعون',
+      englishTitle: 'Surah Al-Maun (Small Kindnesses)',
+      videoId: 'KBXMbrZijsM',
+      color: Color(0xFF0D9488),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '١٠. سورة قريش',
+      englishTitle: 'Surah Quraysh (The Tribe of Quraysh)',
+      videoId: 'LRK987yfTPQ',
+      color: Color(0xFF9333EA),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '١١. سورة الفيل',
+      englishTitle: 'Surah Al-Fil (The Elephant)',
+      videoId: 'CS_86YCKaFY',
+      color: Color(0xFFEA580C),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '١٢. سورة الهمزة',
+      englishTitle: 'Surah Al-Humazah (The Slanderer)',
+      videoId: 'EYHSmenebc8',
+      color: Color(0xFFE11D48),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '١٣. سورة العصر',
+      englishTitle: 'Surah Al-Asr (The Time)',
+      videoId: 'rKnOWbZ6OjA',
+      color: Color(0xFF0891B2),
+    ),
+    TafsirVideoItem(
+      arabicTitle: '١٤. سورة التكاثر',
+      englishTitle: 'Surah At-Takathur (Competition for More)',
+      videoId: '5DTT5UPnU9Q',
+      color: Color(0xFF4F46E5),
+    ),
+  ];
 
   final List _songs = const [
     SongItem(
@@ -233,7 +337,24 @@ class _FaseehWorldStageState extends State {
   @override
   void dispose() {
     _player.dispose();
+    _ytController?.dispose();
     super.dispose();
+  }
+
+  void _initYoutubeForIndex(int index) {
+    final TafsirVideoItem item = _tafsirVideos[index] as TafsirVideoItem;
+    if (_ytController == null) {
+      _ytController = YoutubePlayerController(
+        initialVideoId: item.videoId,
+        flags: const YoutubePlayerFlags(
+          autoPlay: true,
+          mute: false,
+          enableCaption: true,
+        ),
+      );
+    } else {
+      _ytController!.load(item.videoId);
+    }
   }
 
   Future _playMedia(String fileName, String bubbleText, int bonusStars) async {
@@ -311,6 +432,7 @@ class _FaseehWorldStageState extends State {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
                 onPressed: () {
+                  _ytController?.pause();
                   setState(() {
                     if (_screenIndex == 2 && _selectedBookIndex != -1) {
                       _selectedBookIndex = -1;
@@ -420,16 +542,18 @@ class _FaseehWorldStageState extends State {
       return _buildOpenBookViewer(_books[_selectedBookIndex] as StoryBookItem);
     } else if (_screenIndex == 3) {
       return _buildGamesStage();
+    } else if (_screenIndex == 4) {
+      return _buildTafsirStage();
     }
     return _buildMainLobby();
   }
 
-  // الشاشة الرئيسية بالأيقونات الدائرية الجميلة مع الرسمة والكتابة
+  // الشاشة الرئيسية بالأيقونات الدائرية الأربع
   Widget _buildMainLobby() {
     return Center(
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -446,7 +570,7 @@ class _FaseehWorldStageState extends State {
                 _playMedia('song_alphabet.mp3', 'هَيَّا نُغَنِّي مَعاً أَنَاشِيدَ عَالَمِ فَصِيح!', 2);
               },
             ),
-            const SizedBox(width: 36),
+            const SizedBox(width: 20),
             _buildCircularIconPortal(
               label: '📖 القصص',
               subLabel: 'حكايات مصوّرة',
@@ -461,7 +585,7 @@ class _FaseehWorldStageState extends State {
                 _playMedia('story_rabbit.mp3', 'اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ لِتَفْتَحَ صَفَحَاتِهَا الكَبِيرَةَ!', 2);
               },
             ),
-            const SizedBox(width: 36),
+            const SizedBox(width: 20),
             _buildCircularIconPortal(
               label: '🎮 الألعاب',
               subLabel: 'تحديات ونجوم',
@@ -472,6 +596,24 @@ class _FaseehWorldStageState extends State {
                 setState(() {
                   _screenIndex = 3;
                 });
+              },
+            ),
+            const SizedBox(width: 20),
+            _buildCircularIconPortal(
+              label: '🕌 تفسير القرآن',
+              subLabel: 'Quran Tafsir in English',
+              imagePath: 'assets/images/card_stories.png',
+              ringColor: const Color(0xFF059669),
+              badgeBg: const Color(0xFFECFDF5),
+              onTap: () async {
+                await _player.stop();
+                setState(() {
+                  _isPlaying = false;
+                  _screenIndex = 4;
+                  _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ بِاللُّغَةِ الإِنْجِلِيزِيَّةِ لِلْأَطْفَالِ! اخْتَرِ السُّورَةَ لِلْمُشَاهَدَةِ!';
+                  _stars += 5;
+                });
+                _initYoutubeForIndex(_selectedTafsirIndex);
               },
             ),
           ],
@@ -494,15 +636,15 @@ class _FaseehWorldStageState extends State {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 172,
-            height: 172,
-            padding: const EdgeInsets.all(6),
+            width: 146,
+            height: 146,
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white,
-              border: Border.all(color: ringColor, width: 6),
+              border: Border.all(color: ringColor, width: 5.5),
               boxShadow: const [
-                BoxShadow(color: Colors.black45, blurRadius: 14, offset: Offset(0, 7)),
+                BoxShadow(color: Colors.black45, blurRadius: 12, offset: Offset(0, 6)),
               ],
             ),
             child: ClipOval(
@@ -512,13 +654,13 @@ class _FaseehWorldStageState extends State {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
             decoration: BoxDecoration(
               color: badgeBg,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: ringColor, width: 3.5),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: ringColor, width: 3),
               boxShadow: const [
                 BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 4)),
               ],
@@ -528,7 +670,7 @@ class _FaseehWorldStageState extends State {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 21,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: ringColor,
                   ),
@@ -536,12 +678,150 @@ class _FaseehWorldStageState extends State {
                 Text(
                   subLabel,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF475569),
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // شاشة تفسير القرآن بالإنجليزية (فيديو يوتيوب يمين + قائمة السور يسار)
+  Widget _buildTafsirStage() {
+    final TafsirVideoItem activeItem = _tafsirVideos[_selectedTafsirIndex] as TafsirVideoItem;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 6,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(245),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: activeItem.color, width: 4),
+                boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 12)],
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: _ytController != null
+                          ? YoutubePlayer(
+                              controller: _ytController!,
+                              showVideoProgressIndicator: true,
+                              progressIndicatorColor: const Color(0xFF059669),
+                            )
+                          : const Center(child: CircularProgressIndicator()),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        activeItem.arabicTitle,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: activeItem.color),
+                      ),
+                      Text(
+                        activeItem.englishTitle,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 4,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(235),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: const Color(0xFF059669), width: 3.5),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    '📖 Quran Tafsir in English',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF065F46)),
+                  ),
+                  const Divider(height: 12),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _tafsirVideos.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final TafsirVideoItem surah = _tafsirVideos[index] as TafsirVideoItem;
+                        final bool isSelected = index == _selectedTafsirIndex;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Material(
+                            color: isSelected ? surah.color : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(16),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () {
+                                setState(() {
+                                  _selectedTafsirIndex = index;
+                                  _stars += 3;
+                                  _owlBubble = 'تُشَاهِدُ الآنَ تَفْسِيرَ: ${surah.arabicTitle} (${surah.englishTitle})';
+                                });
+                                _initYoutubeForIndex(index);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isSelected ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded,
+                                      color: isSelected ? Colors.white : surah.color,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            surah.arabicTitle,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              color: isSelected ? Colors.white : const Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                          Text(
+                                            surah.englishTitle,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: isSelected ? const Color(0xFFFEF08A) : const Color(0xFF475569),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
