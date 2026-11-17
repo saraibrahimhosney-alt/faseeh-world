@@ -108,9 +108,9 @@ class _FaseehWorldStageState extends State {
   bool _isPlaying = false;
   bool _owlBounce = false;
   String _currentTrack = 'welcome.mp3';
-  String _owlBubble = 'أَهْلاً بِكَ فِي عَالَمِ فَصِيح! اخْتَرْ جَزِيرَةَ الأَنَاشِيدِ أَوِ القِصَصِ أَوِ الأَلْعَابِ!';
+  String _owlBubble = 'أَهْلاً بِكَ فِي عَالَمِ فَصِيح! اخْتَرْ أَيَّ أَيْقُونَةٍ دَائِرِيَّةٍ لِنَبْدَأَ المَرَحَ!';
 
-  int _selectedBookIndex = -1; // -1: عرض رف الكتب, 0 أو 1: فتح الكتاب بملء الشاشة
+  int _selectedBookIndex = -1;
   int _currentPageIndex = 0;
 
   final List _songs = const [
@@ -277,7 +277,7 @@ class _FaseehWorldStageState extends State {
             fit: BoxFit.cover,
           ),
           Container(
-            color: Colors.black.withAlpha(45),
+            color: Colors.black.withAlpha(35),
           ),
           SafeArea(
             child: Column(
@@ -424,18 +424,21 @@ class _FaseehWorldStageState extends State {
     return _buildMainLobby();
   }
 
+  // الشاشة الرئيسية بالأيقونات الدائرية الجميلة مع الرسمة والكتابة
   Widget _buildMainLobby() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 6, 18, 16),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: _buildPortalCard(
-              title: '🎵 أناشيد وأغاني فصيح',
-              subtitle: 'أغانٍ مرحة بالألحان والحروف',
+    return Center(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildCircularIconPortal(
+              label: '🎵 الأناشيد',
+              subLabel: 'أغانٍ وألحان',
               imagePath: 'assets/images/card_songs.png',
-              borderColor: const Color(0xFFEC4899),
+              ringColor: const Color(0xFFEC4899),
+              badgeBg: const Color(0xFFFDF2F8),
               onTap: () {
                 setState(() {
                   _screenIndex = 1;
@@ -443,15 +446,13 @@ class _FaseehWorldStageState extends State {
                 _playMedia('song_alphabet.mp3', 'هَيَّا نُغَنِّي مَعاً أَنَاشِيدَ عَالَمِ فَصِيح!', 2);
               },
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            flex: 3,
-            child: _buildPortalCard(
-              title: '📖 مكتبة القصص المصوّرة',
-              subtitle: 'اقرأ واقلب الصفحات واستمع للحكاية',
+            const SizedBox(width: 36),
+            _buildCircularIconPortal(
+              label: '📖 القصص',
+              subLabel: 'حكايات مصوّرة',
               imagePath: 'assets/images/card_stories.png',
-              borderColor: const Color(0xFF8B5CF6),
+              ringColor: const Color(0xFF8B5CF6),
+              badgeBg: const Color(0xFFF5F3FF),
               onTap: () {
                 setState(() {
                   _screenIndex = 2;
@@ -460,128 +461,90 @@ class _FaseehWorldStageState extends State {
                 _playMedia('story_rabbit.mp3', 'اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ لِتَفْتَحَ صَفَحَاتِهَا الكَبِيرَةَ!', 2);
               },
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            flex: 2,
-            child: _buildGamesPortalCard(),
-          ),
-        ],
+            const SizedBox(width: 36),
+            _buildCircularIconPortal(
+              label: '🎮 الألعاب',
+              subLabel: 'تحديات ونجوم',
+              imagePath: 'assets/images/owl_mascot.png',
+              ringColor: const Color(0xFFF59E0B),
+              badgeBg: const Color(0xFFFFFBEB),
+              onTap: () {
+                setState(() {
+                  _screenIndex = 3;
+                });
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPortalCard({
-    required String title,
-    required String subtitle,
+  Widget _buildCircularIconPortal({
+    required String label,
+    required String subLabel,
     required String imagePath,
-    required Color borderColor,
+    required Color ringColor,
+    required Color badgeBg,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: borderColor, width: 4.5),
-          boxShadow: const [
-            BoxShadow(color: Colors.black45, blurRadius: 12, offset: Offset(0, 6)),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(25),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(imagePath, fit: BoxFit.cover),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [Colors.black.withAlpha(220), Colors.transparent],
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 19),
-                      ),
-                      Text(
-                        subtitle,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Color(0xFFFDE68A), fontSize: 13.5, fontWeight: FontWeight.w600),
-                      ),
-                    ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 172,
+            height: 172,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              border: Border.all(color: ringColor, width: 6),
+              boxShadow: const [
+                BoxShadow(color: Colors.black45, blurRadius: 14, offset: Offset(0, 7)),
+              ],
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+            decoration: BoxDecoration(
+              color: badgeBg,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: ringColor, width: 3.5),
+              boxShadow: const [
+                BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 4)),
+              ],
+            ),
+            child: Column(
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
+                    color: ringColor,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGamesPortalCard() {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _screenIndex = 3;
-        });
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0284C7), Color(0xFF059669)],
-          ),
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: const Color(0xFFFBBF24), width: 4.5),
-          boxShadow: const [
-            BoxShadow(color: Colors.black45, blurRadius: 12, offset: Offset(0, 6)),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/owl_mascot.png',
-                  width: 96,
-                  height: 96,
-                  fit: BoxFit.cover,
+                Text(
+                  subLabel,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF475569),
+                  ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 12),
-            const Text(
-              '🎮 تحديات فصيح',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
-            ),
-            const SizedBox(height: 6),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Text(
-                'العب واجمع النجوم الذهبية!',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFFFEF08A), fontWeight: FontWeight.bold, fontSize: 13.5),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -701,7 +664,6 @@ class _FaseehWorldStageState extends State {
         ),
         child: Column(
           children: [
-            // شريط عنوان القصة أعلى الكتاب
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               decoration: BoxDecoration(
@@ -732,12 +694,9 @@ class _FaseehWorldStageState extends State {
                 ],
               ),
             ),
-
-            // محتوى الصفحة المفتوحة (مشهد مصوّر يمين + نص كبير يسار)
             Expanded(
               child: Row(
                 children: [
-                  // الصفحة اليمنى: المشهد الكرتوني والرموز التعبيرية الكبيرة
                   Expanded(
                     flex: 4,
                     child: Container(
@@ -767,15 +726,11 @@ class _FaseehWorldStageState extends State {
                       ),
                     ),
                   ),
-
-                  // خط فاصل يشبه طيّة الكتاب المفتوح
                   Container(
                     width: 3,
                     margin: const EdgeInsets.symmetric(vertical: 16),
                     color: book.color.withAlpha(60),
                   ),
-
-                  // الصفحة اليسرى: نص القصة بخط كبير ومريح للقراءة
                   Expanded(
                     flex: 6,
                     child: Padding(
@@ -825,8 +780,6 @@ class _FaseehWorldStageState extends State {
                 ],
               ),
             ),
-
-            // أزرار تقليب الصفحات الكبيرة في الأسفل
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Row(
