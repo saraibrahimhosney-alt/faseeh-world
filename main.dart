@@ -129,6 +129,29 @@ class _FaseehWorldStageState extends State {
   int _selectedBookIndex = -1;
   int _currentPageIndex = 0;
   int _selectedTafsirIndex = 0;
+  int _recitationIndex = 0;
+
+  // فيديوهات التلاوة الآمنة
+  final List _recitationVideoIds = const [
+    'bP1jjGxwdEs',
+    'enlsnMoMAsI',
+    '7ITyHlnzUkY',
+    'FN6R21YEyeA',
+    '3gbEFfKW-UM',
+    'BqVobCoQv4I',
+    'zav5SzRNPCs',
+    'FzPKrwNrh_A',
+    'JI8z72h5sUA',
+    'gNaPoAU2ojg',
+    'MORw76wrIMU',
+    'yjomUlM-MZU',
+    'KBXMbrZijsM',
+    'LRK987yfTPQ',
+    'CS_86YCKaFY',
+    'EYHSmenebc8',
+    'rKnOWbZ6OjA',
+    '5DTT5UPnU9Q',
+  ];
 
   final List _tafsirVideos = const [
     TafsirVideoItem(
@@ -340,24 +363,68 @@ class _FaseehWorldStageState extends State {
     super.dispose();
   }
 
-  void _loadYoutubeDirect(String directUrl) {
+  // تحميل الفيديو مع قفل الصفحة على مشغل الفيديو فقط وإخفاء البحث والمقترحات
+  void _loadSafeKidVideo(String videoId) {
+    final String targetUrl = 'https://m.youtube.com/watch?v=$videoId';
     final WebViewController ctrl = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF000000))
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (NavigationRequest request) {
-            // إبقاء الطالب داخل يوتيوب داخل التطبيق ومنع فتح روابط خارجية
-            if (request.url.startsWith('https://m.youtube.com') ||
-                request.url.startsWith('https://www.youtube.com') ||
-                request.url.startsWith('https://accounts.google.com')) {
+            // السماح فقط بنفس الفيديو المطلوب ومنع فتح أي فيديو مقترح أو رئيسية يوتيوب
+            if (request.url.contains(videoId)) {
               return NavigationDecision.navigate;
             }
             return NavigationDecision.prevent;
           },
+          onPageFinished: (String url) {
+            // حقن كود CSS/JS لإخفاء شريط البحث والفيديوهات المقترحة والقوائم الجانبية وتكبير المشغل فقط
+            _webController?.runJavaScript('''
+              (function() {
+                var style = document.createElement('style');
+                style.innerHTML = `
+                  ytm-mobile-topbar-renderer,
+                  header,
+                  ytm-pivot-bar-renderer,
+                  ytm-item-section-renderer,
+                  ytm-single-column-watch-next-results-renderer > div:not(:first-child),
+                  .related-chips-slot-renderer,
+                  #related,
+                  #comments,
+                  ytm-comment-section-renderer,
+                  ytm-slim-video-metadata-section-renderer,
+                  ytm-promoted-sparkles-web-renderer,
+                  .ytp-chrome-top,
+                  .ytp-pause-overlay,
+                  .ytp-endscreen-content {
+                    display: none !important;
+                    visibility: hidden !important;
+                    height: 0 !important;
+                    overflow: hidden !important;
+                  }
+                  body, html {
+                    background-color: #000000 !important;
+                    overflow: hidden !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                  }
+                  #player-container-id, .player-container, #player {
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    z-index: 99999 !important;
+                  }
+                `;
+                document.head.appendChild(style);
+              })();
+            ''');
+          },
         ),
       )
-      ..loadRequest(Uri.parse(directUrl));
+      ..loadRequest(Uri.parse(targetUrl));
     setState(() {
       _webController = ctrl;
     });
@@ -621,7 +688,7 @@ class _FaseehWorldStageState extends State {
                   _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ بِاللُّغَةِ الإِنْجِلِيزِيَّةِ! اخْتَرِ السُّورَةَ لِلْمُشَاهَدَةِ!';
                   _stars += 5;
                 });
-                _loadYoutubeDirect('https://m.youtube.com/watch?v=${first.videoId}');
+                _loadSafeKidVideo(first.videoId);
               },
             ),
             const SizedBox(width: 14),
@@ -639,7 +706,7 @@ class _FaseehWorldStageState extends State {
                   _owlBubble = 'اسْتَمِعْ وَرَدِّدْ تِلَاوَةَ القُرْآنِ الكَرِيمِ بِصَوْتٍ عَذْبٍ!';
                   _stars += 5;
                 });
-                _loadYoutubeDirect('https://m.youtube.com/playlist?list=PLAlCUgIGlphRU9Qc1IbmubwpYzyckh_ol');
+                _loadSafeKidVideo(_recitationVideoIds[_recitationIndex].toString());
               },
             ),
           ],
@@ -717,22 +784,86 @@ class _FaseehWorldStageState extends State {
     );
   }
 
+  // شاشة تلاوة القرآن المغلقة والآمنة للأطفال
   Widget _buildRecitationStage() {
+    final bool isFirst = _recitationIndex == 0;
+    final bool isLast = _recitationIndex == _recitationVideoIds.length - 1;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white.withAlpha(245),
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: const Color(0xFF0284C7), width: 4.5),
           boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 14)],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: _webController != null
-              ? WebViewWidget(controller: _webController!)
-              : const Center(child: CircularProgressIndicator()),
+        child: Column(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: _webController != null
+                    ? WebViewWidget(controller: _webController!)
+                    : const Center(child: CircularProgressIndicator()),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isFirst ? Colors.grey.shade300 : const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  onPressed: isFirst
+                      ? null
+                      : () {
+                          setState(() {
+                            _recitationIndex -= 1;
+                          });
+                          _loadSafeKidVideo(_recitationVideoIds[_recitationIndex].toString());
+                        },
+                  icon: const Icon(Icons.skip_previous_rounded, size: 26),
+                  label: const Text('التلاوة السابقة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0F2FE),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF0284C7), width: 2),
+                  ),
+                  child: Text(
+                    '🔒 تلاوة آمنة (${_recitationIndex + 1} / ${_recitationVideoIds.length})',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0369A1)),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isLast ? Colors.grey.shade300 : const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  onPressed: isLast
+                      ? null
+                      : () {
+                          setState(() {
+                            _recitationIndex += 1;
+                            _stars += 3;
+                          });
+                          _loadSafeKidVideo(_recitationVideoIds[_recitationIndex].toString());
+                        },
+                  icon: const Icon(Icons.skip_next_rounded, size: 26),
+                  label: const Text('التلاوة التالية (+3 ⭐)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -818,7 +949,7 @@ class _FaseehWorldStageState extends State {
                                   _stars += 3;
                                   _owlBubble = 'تُشَاهِدُ الآنَ تَفْسِيرَ: ${surah.arabicTitle} (${surah.englishTitle})';
                                 });
-                                _loadYoutubeDirect('https://m.youtube.com/watch?v=${surah.videoId}');
+                                _loadSafeKidVideo(surah.videoId);
                               },
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
