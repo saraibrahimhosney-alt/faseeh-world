@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -122,12 +123,374 @@ class FaseehCartoonApp extends StatelessWidget {
       ),
       home: const Directionality(
         textDirection: TextDirection.rtl,
-        child: FaseehWorldStage(),
+        child: FaseehCelebrationSplash(),
       ),
     );
   }
 }
 
+// ============================================================================
+// شاشة البداية الاحتفالية المتحركة بالعلامة البصرية والشخصيات الرئيسية
+// ============================================================================
+class FaseehCelebrationSplash extends StatefulWidget {
+  const FaseehCelebrationSplash({super.key});
+
+  @override
+  State<FaseehCelebrationSplash> createState() => _FaseehCelebrationSplashState();
+}
+
+class _FaseehCelebrationSplashState extends State<FaseehCelebrationSplash>
+    with TickerProviderStateMixin {
+  late final AnimationController _confettiController;
+  late final AnimationController _pulseController;
+  final AudioPlayer _splashPlayer = AudioPlayer();
+  Timer? _autoEnterTimer;
+  bool _navigated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+
+    Future.delayed(const Duration(milliseconds: 250), () async {
+      try {
+        await _splashPlayer.play(AssetSource('audio/welcome.mp3'));
+      } catch (_) {}
+    });
+
+    // الانتقال التلقائي بعد 5 ثوانٍ إذا لم يضغط الطفل على زر البدء
+    _autoEnterTimer = Timer(const Duration(seconds: 5), _goToMainStage);
+  }
+
+  void _goToMainStage() {
+    if (_navigated || !mounted) return;
+    _navigated = true;
+    _autoEnterTimer?.cancel();
+    _splashPlayer.stop();
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 650),
+        pageBuilder: (_, __, ___) => const Directionality(
+          textDirection: TextDirection.rtl,
+          child: FaseehWorldStage(),
+        ),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.92, end: 1.0).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+              ),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _autoEnterTimer?.cancel();
+    _confettiController.dispose();
+    _pulseController.dispose();
+    _splashPlayer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // الخلفية الكرتونية مع تدرج لوني احتفالي مبهج
+          Image.asset('assets/images/forest_bg.png', fit: BoxFit.cover),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF0284C7).withAlpha(110),
+                  const Color(0xFF7C3AED).withAlpha(90),
+                  const Color(0xFFF59E0B).withAlpha(110),
+                ],
+              ),
+            ),
+          ),
+
+          // طبقة الاحتفال المتحركة (نجوم، بالونات، وأوراق زينة ملونة)
+          AnimatedBuilder(
+            animation: _confettiController,
+            builder: (context, _) {
+              return CustomPaint(
+                painter: _CelebrationConfettiPainter(_confettiController.value),
+                size: Size.infinite,
+              );
+            },
+          ),
+
+          // محتوى الهوية البصرية والشخصيات الرئيسية في المنتصف
+          SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // شارة الترحيب العلوية
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF08A),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: const Color(0xFFD97706), width: 3),
+                      boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 4))],
+                    ),
+                    child: const Text(
+                      '✨ مَرْحَباً بِكُمْ فِي عَالَمِ اللُّغَةِ العَرَبِيَّةِ وَالقُرْآنِ ✨',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF92400E),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // الشخصيات الرئيسية الثلاث بحركة نبضية احتفالية
+                  ScaleTransition(
+                    scale: Tween<double>(begin: 0.96, end: 1.05).animate(
+                      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // شخصية الأناشيد
+                        _buildCharacterBadge(
+                          imagePath: 'assets/images/card_songs.png',
+                          ringColor: const Color(0xFFEC4899),
+                          size: 118,
+                          emoji: '🎵',
+                        ),
+                        const SizedBox(width: 18),
+                        // الشخصية المركزية: البوم الحكيم فصيح
+                        _buildCharacterBadge(
+                          imagePath: 'assets/images/owl_mascot.png',
+                          ringColor: const Color(0xFFFBBF24),
+                          size: 162,
+                          emoji: '👑',
+                          isCenter: true,
+                        ),
+                        const SizedBox(width: 18),
+                        // شخصية القصص
+                        _buildCharacterBadge(
+                          imagePath: 'assets/images/card_stories.png',
+                          ringColor: const Color(0xFF10B981),
+                          size: 118,
+                          emoji: '📖',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // عنوان التطبيق الكبير (العلامة البصرية)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(245),
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(color: const Color(0xFF0284C7), width: 4.5),
+                      boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 16, offset: Offset(0, 6))],
+                    ),
+                    child: const Column(
+                      children: [
+                        Text(
+                          '🦉 عَالَمُ فَصِيحٍ 🦉',
+                          style: TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0284C7),
+                            height: 1.15,
+                          ),
+                        ),
+                        Text(
+                          'FASEEH WORLD — أَنَاشِيدُ • قِصَصٌ • أَلْعَابٌ • قُرْآنٌ كَرِيمٌ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF059669),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // زر الانطلاق الفوري
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      elevation: 8,
+                      padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: const BorderSide(color: Colors.white, width: 3.5),
+                      ),
+                    ),
+                    onPressed: _goToMainStage,
+                    icon: const Icon(Icons.rocket_launch_rounded, size: 28),
+                    label: const Text(
+                      'هَيَّا نَبْدَأُ المَرَحَ! 🎉',
+                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCharacterBadge({
+    required String imagePath,
+    required Color ringColor,
+    required double size,
+    required String emoji,
+    bool isCenter = false,
+  }) {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            border: Border.all(color: ringColor, width: isCenter ? 7 : 5),
+            boxShadow: [
+              BoxShadow(
+                color: ringColor.withAlpha(180),
+                blurRadius: isCenter ? 24 : 14,
+                spreadRadius: isCenter ? 4 : 1,
+              ),
+            ],
+          ),
+          child: ClipOval(
+            child: Image.asset(imagePath, fit: BoxFit.cover),
+          ),
+        ),
+        Positioned(
+          top: -16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: ringColor, width: 2.5),
+            ),
+            child: Text(emoji, style: TextStyle(fontSize: isCenter ? 24 : 19)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CelebrationConfettiPainter extends CustomPainter {
+  final double progress;
+  _CelebrationConfettiPainter(this.progress);
+
+  static const List<Color> _colors = [
+    Color(0xFFFBBF24),
+    Color(0xFFEC4899),
+    Color(0xFF10B981),
+    Color(0xFF38BDF8),
+    Color(0xFFA855F7),
+    Color(0xFFF97316),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()..style = PaintingStyle.fill;
+    for (int i = 0; i < 42; i++) {
+      final double seedX = ((i * 73) % 100) / 100.0;
+      final double speed = 0.6 + ((i % 5) * 0.18);
+      final double yNorm = ((i * 0.09) + (progress * speed)) % 1.0;
+      final double sway = math.sin((progress * math.pi * 2) + i) * 24;
+
+      final double dx = (seedX * size.width) + sway;
+      final double dy = yNorm * size.height;
+
+      paint.color = _colors[i % _colors.length].withAlpha(220);
+
+      if (i % 3 == 0) {
+        // دوائر مضيئة
+        canvas.drawCircle(Offset(dx, dy), 7.5, paint);
+      } else if (i % 3 == 1) {
+        // أشرطة احتفالية مائلة
+        canvas.save();
+        canvas.translate(dx, dy);
+        canvas.rotate((progress * math.pi * 4) + i);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(const Rect.fromLTWH(-8, -4, 16, 8), const Radius.circular(3)),
+          paint,
+        );
+        canvas.restore();
+      } else {
+        // نجوم خماسية صغيرة
+        _drawStar(canvas, Offset(dx, dy), 9, paint);
+      }
+    }
+  }
+
+  void _drawStar(Canvas canvas, Offset center, double radius, Paint paint) {
+    final Path path = Path();
+    for (int i = 0; i < 5; i++) {
+      final double outerAngle = (i * 72 - 90) * math.pi / 180;
+      final double innerAngle = ((i * 72) + 36 - 90) * math.pi / 180;
+      final Offset outer = Offset(
+        center.dx + math.cos(outerAngle) * radius,
+        center.dy + math.sin(outerAngle) * radius,
+      );
+      final Offset inner = Offset(
+        center.dx + math.cos(innerAngle) * (radius * 0.45),
+        center.dy + math.sin(innerAngle) * (radius * 0.45),
+      );
+      if (i == 0) {
+        path.moveTo(outer.dx, outer.dy);
+      } else {
+        path.lineTo(outer.dx, outer.dy);
+      }
+      path.lineTo(inner.dx, inner.dy);
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CelebrationConfettiPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+// ============================================================================
+// الشاشة الرئيسية والأقسام التفاعلية للتطبيق
+// ============================================================================
 class FaseehWorldStage extends StatefulWidget {
   const FaseehWorldStage({super.key});
 
@@ -145,14 +508,13 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
   String? _videoError;
   bool _isVideoExpanded = false;
 
-  int _screenIndex = 0; // 0: الرئيسية, 1: الأناشيد, 2: القصص, 3: الألعاب, 4: التفسير, 5: التلاوة
+  int _screenIndex = 0;
   int _stars = 30;
   bool _isPlaying = false;
   bool _owlBounce = false;
   String _currentTrack = 'welcome.mp3';
   String _owlBubble = 'أَهْلاً بِكَ فِي عَالَمِ فَصِيحٍ! اخْتَرْ أَيَّ أَيْقُونَةٍ دَائِرِيَّةٍ لِنَبْدَأَ المَرَحَ!';
 
-  // مؤشرات الاختيار الفرعي داخل كل قسم (-1 يعني عرض الدوائر أولاً)
   int _selectedSongIndex = -1;
   int _selectedBookIndex = -1;
   int _currentPageIndex = 0;
@@ -344,9 +706,6 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
         });
       }
     });
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _playMedia('welcome.mp3', _owlBubble, 0);
-    });
   }
 
   @override
@@ -358,7 +717,6 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
     super.dispose();
   }
 
-  // التحقق مما إذا كان المستخدم داخل شاشة فرعية ليظهر زر الرجوع للخلف
   bool get _canGoBackOneStep {
     if (_screenIndex == 1 && _selectedSongIndex != -1) return true;
     if (_screenIndex == 2 && _selectedBookIndex != -1) return true;
@@ -458,941 +816,4 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
       _stars += bonusStars;
     });
     await _player.stop();
-    await _player.play(AssetSource('audio/$fileName'));
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) {
-        setState(() {
-          _owlBounce = false;
-        });
-      }
-    });
-  }
-
-  Future<void> _toggleStopPlay() async {
-    _storySegmentTimer?.cancel();
-    if (_isPlaying) {
-      await _player.stop();
-      setState(() {
-        _isPlaying = false;
-      });
-    } else if (_screenIndex == 2 && _selectedBookIndex != -1) {
-      await _playStoryPageAudio(_books[_selectedBookIndex], _currentPageIndex);
-    } else {
-      await _playMedia(_currentTrack, _owlBubble, 0);
-    }
-  }
-
-  Widget _buildNativeVideoPlayerBox({required Color borderColor, required VoidCallback onRetry}) {
-    if (_isVideoLoading) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(strokeWidth: 5, color: Colors.white),
-            SizedBox(height: 12),
-            Text('جَارِي تَجْهِيزُ الفِيدْيُو الآمِنِ...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-          ],
-        ),
-      );
-    }
-    if (_videoError != null || _videoController == null || !_videoController!.value.isInitialized) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_videoError ?? 'اضْغَطْ لِتَشْغِيلِ الفِيدْيُو', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-            const SizedBox(height: 10),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إِعَادَةُ المُحَاوَلَةِ'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final VideoPlayerController ctrl = _videoController!;
-    return Stack(
-      alignment: Alignment.bottomCenter,
-      children: [
-        Center(
-          child: AspectRatio(
-            aspectRatio: ctrl.value.aspectRatio,
-            child: VideoPlayer(ctrl),
-          ),
-        ),
-        Positioned(
-          top: 8,
-          left: 8,
-          child: Material(
-            color: Colors.black.withAlpha(170),
-            borderRadius: BorderRadius.circular(20),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () {
-                setState(() {
-                  _isVideoExpanded = !_isVideoExpanded;
-                });
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_isVideoExpanded ? Icons.view_sidebar_rounded : Icons.fullscreen_rounded, color: Colors.white, size: 22),
-                    const SizedBox(width: 6),
-                    Text(
-                      _isVideoExpanded ? 'إِظْهَارُ قَائِمَةِ السُّوَرِ' : 'تَكْبِيرُ الشَّاشَةِ ⛶',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        Container(
-          color: Colors.black54,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Row(
-            children: [
-              IconButton(
-                color: Colors.white,
-                icon: Icon(ctrl.value.isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded, size: 32),
-                onPressed: () {
-                  setState(() {
-                    if (ctrl.value.isPlaying) {
-                      ctrl.pause();
-                    } else {
-                      ctrl.play();
-                    }
-                  });
-                },
-              ),
-              Expanded(
-                child: VideoProgressIndicator(
-                  ctrl,
-                  allowScrubbing: true,
-                  colors: VideoProgressColors(
-                    playedColor: borderColor,
-                    bufferedColor: Colors.white54,
-                    backgroundColor: Colors.white24,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset('assets/images/forest_bg.png', fit: BoxFit.cover),
-          Container(color: Colors.black.withAlpha(35)),
-          SafeArea(
-            child: Column(
-              children: [
-                _buildTopBar(),
-                Expanded(child: _buildCurrentStage()),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      child: Row(
-        children: [
-          // 1. زر العودة إلى الشاشة الرئيسية مباشرة
-          if (_screenIndex != 0)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF59E0B),
-                  foregroundColor: Colors.white,
-                  elevation: 4,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                ),
-                onPressed: () async {
-                  _storySegmentTimer?.cancel();
-                  await _player.stop();
-                  await _videoController?.pause();
-                  setState(() {
-                    _isPlaying = false;
-                    _isVideoExpanded = false;
-                    _selectedSongIndex = -1;
-                    _selectedBookIndex = -1;
-                    _selectedQuizIndex = -1;
-                    _screenIndex = 0;
-                    _owlBubble = 'أَهْلاً بِكَ فِي عَالَمِ فَصِيحٍ! اخْتَرْ أَيَّ أَيْقُونَةٍ دَائِرِيَّةٍ!';
-                  });
-                },
-                icon: const Icon(Icons.home_rounded, size: 24),
-                label: const Text('الرَّئِيسِيَّةُ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              ),
-            ),
-
-          // 2. زر السهم للرجوع خطوة واحدة للخلف
-          if (_screenIndex != 0)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0284C7),
-                  foregroundColor: Colors.white,
-                  elevation: 4,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                ),
-                onPressed: () async {
-                  if (_canGoBackOneStep) {
-                    await _handleBackOneStep();
-                  } else {
-                    _storySegmentTimer?.cancel();
-                    await _player.stop();
-                    await _videoController?.pause();
-                    setState(() {
-                      _isPlaying = false;
-                      _screenIndex = 0;
-                    });
-                  }
-                },
-                icon: const Icon(Icons.arrow_forward_rounded, size: 24),
-                label: const Text('رُجُوعٌ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              ),
-            ),
-
-          GestureDetector(
-            onTap: _toggleStopPlay,
-            child: AnimatedScale(
-              scale: _owlBounce ? 1.15 : 1.0,
-              duration: const Duration(milliseconds: 300),
-              child: Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFFBBF24), width: 3.5),
-                  color: Colors.white,
-                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
-                ),
-                child: ClipOval(child: Image.asset('assets/images/owl_mascot.png', width: 52, height: 52, fit: BoxFit.cover)),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withAlpha(242),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFF38BDF8), width: 2.5),
-                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
-              ),
-              child: Text(
-                _owlBubble,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton.filled(
-            style: IconButton.styleFrom(
-              backgroundColor: _isPlaying ? const Color(0xFFEF4444) : const Color(0xFF10B981),
-              padding: const EdgeInsets.all(10),
-            ),
-            onPressed: _toggleStopPlay,
-            icon: Icon(_isPlaying ? Icons.stop_rounded : Icons.volume_up_rounded, size: 26),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFFFBBF24), Color(0xFFD97706)]),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white, width: 2.5),
-              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
-            ),
-            child: Row(
-              children: [
-                const Text('⭐ ', style: TextStyle(fontSize: 19)),
-                Text('$_stars', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrentStage() {
-    if (_screenIndex == 1) {
-      if (_selectedSongIndex == -1) return _buildSongsCircleHub();
-      return _buildSingleSongPlayer(_songs[_selectedSongIndex]);
-    }
-    if (_screenIndex == 2) {
-      if (_selectedBookIndex == -1) return _buildBooksCircleHub();
-      return _buildOpenBookViewer(_books[_selectedBookIndex]);
-    }
-    if (_screenIndex == 3) {
-      if (_selectedQuizIndex == -1) return _buildGamesCircleHub();
-      return _buildSingleGameStage(_quizzes[_selectedQuizIndex]);
-    }
-    if (_screenIndex == 4) {
-      return _buildVideoWithSidebarStage(
-        sectionTitle: '📖 تَفْسِيرُ القُرْآنِ الكَرِيمِ',
-        headerColor: const Color(0xFF059669),
-        items: _tafsirVideos,
-        selectedIndex: _selectedTafsirIndex,
-        onSelect: (int idx) {
-          setState(() {
-            _selectedTafsirIndex = idx;
-            _stars += 3;
-            _owlBubble = 'تُشَاهِدُ الآنَ تَفْسِيرَ: ${_tafsirVideos[idx].arabicTitle}';
-          });
-          _playDirectNativeVideo(_tafsirVideos[idx].videoId);
-        },
-      );
-    }
-    if (_screenIndex == 5) {
-      return _buildVideoWithSidebarStage(
-        sectionTitle: '🎧 سُوَرُ تِلَاوَةِ القُرْآنِ',
-        headerColor: const Color(0xFF0284C7),
-        items: _recitationVideos,
-        selectedIndex: _selectedRecitationIndex,
-        onSelect: (int idx) {
-          setState(() {
-            _selectedRecitationIndex = idx;
-            _stars += 3;
-            _owlBubble = 'تَسْتَمِعُ الآنَ إِلَى تِلَاوَةِ: ${_recitationVideos[idx].arabicTitle}';
-          });
-          _playDirectNativeVideo(_recitationVideos[idx].videoId);
-        },
-      );
-    }
-    return _buildMainLobby();
-  }
-
-  // الشاشة الرئيسية بـ 5 أيقونات دائرية مضبوطة بالحركات وباللغة الإنجليزية
-  Widget _buildMainLobby() {
-    return Center(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildCircularIconPortal(
-              label: '🎵 الأَنَاشِيدُ',
-              subLabel: 'Arabic Songs',
-              imagePath: 'assets/images/card_songs.png',
-              ringColor: const Color(0xFFEC4899),
-              badgeBg: const Color(0xFFFDF2F8),
-              onTap: () {
-                setState(() {
-                  _screenIndex = 1;
-                  _selectedSongIndex = -1;
-                });
-                _playMedia('song_alphabet.mp3', 'اخْتَرْ أُنْشُودَةً مِنَ الأَيْقُونَاتِ الدَّائِرِيَّةِ!', 2);
-              },
-            ),
-            const SizedBox(width: 14),
-            _buildCircularIconPortal(
-              label: '📖 القِصَصُ',
-              subLabel: 'Interactive Stories',
-              imagePath: 'assets/images/card_stories.png',
-              ringColor: const Color(0xFF8B5CF6),
-              badgeBg: const Color(0xFFF5F3FF),
-              onTap: () {
-                setState(() {
-                  _screenIndex = 2;
-                  _selectedBookIndex = -1;
-                });
-                _playMedia('story_rabbit.mp3', 'اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ لِتَفْتَحَ صَفَحَاتِهَا الكَبِيرَةَ!', 2);
-              },
-            ),
-            const SizedBox(width: 14),
-            _buildCircularIconPortal(
-              label: '🎮 الأَلْعَابُ',
-              subLabel: 'Fun Challenges',
-              imagePath: 'assets/images/owl_mascot.png',
-              ringColor: const Color(0xFFF59E0B),
-              badgeBg: const Color(0xFFFFFBEB),
-              onTap: () {
-                setState(() {
-                  _screenIndex = 3;
-                  _selectedQuizIndex = -1;
-                  _owlBubble = 'اخْتَرْ لُعْبَةً مِنَ التَّحَدِّيَاتِ الثَّلَاثَةِ لِتَرْبَحَ النُّجُومَ!';
-                });
-              },
-            ),
-            const SizedBox(width: 14),
-            _buildCircularIconPortal(
-              label: '🕌 تَفْسِيرُ القُرْآنِ',
-              subLabel: 'Tafsir in English',
-              imagePath: 'assets/images/card_stories.png',
-              ringColor: const Color(0xFF059669),
-              badgeBg: const Color(0xFFECFDF5),
-              onTap: () async {
-                await _player.stop();
-                final VideoSurahItem first = _tafsirVideos[_selectedTafsirIndex];
-                setState(() {
-                  _isPlaying = false;
-                  _isVideoExpanded = false;
-                  _screenIndex = 4;
-                  _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ بِاللُّغَةِ الإِنْجِلِيزِيَّةِ! اخْتَرِ السُّورَةَ لِلْمُشَاهَدَةِ!';
-                  _stars += 5;
-                });
-                _playDirectNativeVideo(first.videoId);
-              },
-            ),
-            const SizedBox(width: 14),
-            _buildCircularIconPortal(
-              label: '🎧 تِلَاوَةُ القُرْآنِ',
-              subLabel: 'Quran Recitation',
-              imagePath: 'assets/images/card_songs.png',
-              ringColor: const Color(0xFF0284C7),
-              badgeBg: const Color(0xFFF0F9FF),
-              onTap: () async {
-                await _player.stop();
-                final VideoSurahItem first = _recitationVideos[_selectedRecitationIndex];
-                setState(() {
-                  _isPlaying = false;
-                  _isVideoExpanded = false;
-                  _screenIndex = 5;
-                  _owlBubble = 'اسْتَمِعْ وَرَدِّدْ تِلَاوَةَ القُرْآنِ الكَرِيمِ! اخْتَرِ السُّورَةَ مِنَ القَائِمَةِ!';
-                  _stars += 5;
-                });
-                _playDirectNativeVideo(first.videoId);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCircularIconPortal({
-    required String label,
-    required String subLabel,
-    required String imagePath,
-    required Color ringColor,
-    required Color badgeBg,
-    required VoidCallback onTap,
-    double circleSize = 132,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: circleSize,
-            height: circleSize,
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              border: Border.all(color: ringColor, width: 5),
-              boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 12, offset: Offset(0, 6))],
-            ),
-            child: ClipOval(child: Image.asset(imagePath, fit: BoxFit.cover)),
-          ),
-          const SizedBox(height: 9),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: badgeBg,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: ringColor, width: 3),
-              boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 4))],
-            ),
-            child: Column(
-              children: [
-                Text(label, style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: ringColor)),
-                Text(subLabel, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 1. شاشة الأناشيد الدائرية (3 أقسام دائرية جميلة)
-  Widget _buildSongsCircleHub() {
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(_songs.length, (int i) {
-          final SongItem s = _songs[i];
-          return _buildCircularIconPortal(
-            circleSize: 155,
-            label: '${s.emoji} ${s.title}',
-            subLabel: s.englishTitle,
-            imagePath: s.imagePath,
-            ringColor: s.color,
-            badgeBg: Colors.white,
-            onTap: () {
-              setState(() => _selectedSongIndex = i);
-              _playMedia(s.audioFile, s.subtitle, 5);
-            },
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildSingleSongPlayer(SongItem s) {
-    final bool active = _currentTrack == s.audioFile && _isPlaying;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(32, 8, 32, 16),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white.withAlpha(248),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: s.color, width: 5),
-          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 16)],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 4,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 140,
-                    height: 140,
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: s.color, width: 5),
-                      color: Colors.white,
-                    ),
-                    child: ClipOval(child: Image.asset(s.imagePath, fit: BoxFit.cover)),
-                  ),
-                  const SizedBox(height: 12),
-                  Text('${s.emoji} ${s.title}', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: s.color)),
-                  Text(s.englishTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 6,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: s.color.withAlpha(100), width: 2.5),
-                    ),
-                    child: Text(
-                      s.lyrics,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 23, height: 1.8, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                    ),
-                  ),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: active ? const Color(0xFF10B981) : s.color,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    ),
-                    onPressed: () => _playMedia(s.audioFile, s.subtitle, 5),
-                    icon: Icon(active ? Icons.graphic_eq_rounded : Icons.play_arrow_rounded, size: 30),
-                    label: Text(active ? 'الأُنْشُودَةُ تَعْمَلُ الآنَ 🎵' : 'شَغِّلِ الأُنْشُودَةَ 🔊', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19)),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 2. شاشة القصص الدائرية الجميلة
-  Widget _buildBooksCircleHub() {
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(_books.length, (int i) {
-          final StoryBookItem book = _books[i];
-          return _buildCircularIconPortal(
-            circleSize: 165,
-            label: '📖 ${book.title}',
-            subLabel: book.englishTitle,
-            imagePath: book.imagePath,
-            ringColor: book.color,
-            badgeBg: Colors.white,
-            onTap: () {
-              setState(() {
-                _selectedBookIndex = i;
-                _currentPageIndex = 0;
-              });
-              _playStoryPageAudio(book, 0);
-            },
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildOpenBookViewer(StoryBookItem book) {
-    final StoryPageData page = book.pages[_currentPageIndex];
-    final bool isFirstPage = _currentPageIndex == 0;
-    final bool isLastPage = _currentPageIndex == book.pages.length - 1;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFDF7),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: book.color, width: 5),
-          boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 18, offset: Offset(0, 8))],
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              decoration: BoxDecoration(color: book.color, borderRadius: const BorderRadius.vertical(top: Radius.circular(26))),
-              child: Row(
-                children: [
-                  const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 26),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(book.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 19))),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.white.withAlpha(50), borderRadius: BorderRadius.circular(16)),
-                    child: Text('صَفْحَةُ ${_currentPageIndex + 1} مِنْ ${book.pages.length}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: Container(
-                      margin: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(color: page.bgTint, borderRadius: BorderRadius.circular(24), border: Border.all(color: book.color.withAlpha(110), width: 3)),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          ClipRRect(borderRadius: BorderRadius.circular(21), child: Opacity(opacity: 0.35, child: Image.asset(book.imagePath, fit: BoxFit.cover))),
-                          Center(child: Text(page.emoji, style: const TextStyle(fontSize: 64))),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Container(width: 3, margin: const EdgeInsets.symmetric(vertical: 16), color: book.color.withAlpha(60)),
-                  Expanded(
-                    flex: 6,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Center(
-                              child: SingleChildScrollView(
-                                child: Text(page.text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 27, height: 1.7, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                              ),
-                            ),
-                          ),
-                          if (isLastPage)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF59E0B), width: 2)),
-                              child: Text('🌟 ${book.moral}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: isFirstPage ? Colors.grey.shade300 : const Color(0xFF0284C7), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                    onPressed: isFirstPage
-                        ? null
-                        : () {
-                            final int prevPage = _currentPageIndex - 1;
-                            setState(() => _currentPageIndex = prevPage);
-                            _playStoryPageAudio(book, prevPage);
-                          },
-                    icon: const Icon(Icons.arrow_back_rounded, size: 28),
-                    label: const Text('الصَّفْحَةُ السَّابِقَةُ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
-                  FilledButton.tonalIcon(
-                    style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                    onPressed: () => _playStoryPageAudio(book, _currentPageIndex),
-                    icon: Icon(_isPlaying ? Icons.graphic_eq_rounded : Icons.volume_up_rounded, size: 26),
-                    label: Text(_isPlaying ? 'يَقْرَأُ هَذِهِ الصَّفْحَةَ...' : 'إِعَادَةُ قِرَاءَةِ الصَّفْحَةِ 🔊', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: isLastPage ? const Color(0xFF10B981) : const Color(0xFFF59E0B), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                    onPressed: () {
-                      if (!isLastPage) {
-                        final int nextPage = _currentPageIndex + 1;
-                        setState(() => _currentPageIndex = nextPage);
-                        _playStoryPageAudio(book, nextPage);
-                      } else {
-                        _storySegmentTimer?.cancel();
-                        _playMedia('bravo.mp3', 'أَحْسَنْتَ! أَنْهَيْتَ قِرَاءَةَ القِصَّةِ بِبَرَاعَةٍ! +10 نُجُومٍ!', 10);
-                        setState(() => _selectedBookIndex = -1);
-                      }
-                    },
-                    icon: Icon(isLastPage ? Icons.star_rounded : Icons.arrow_forward_rounded, size: 28),
-                    label: Text(isLastPage ? 'أَنْهَيْتُ القِصَّةَ (+10 ⭐)' : 'الصَّفْحَةُ التَّالِيَةُ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 3. شاشة الألعاب الدائرية (3 أقسام دائرية جميلة)
-  Widget _buildGamesCircleHub() {
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(_quizzes.length, (int i) {
-          final QuizItem q = _quizzes[i];
-          return _buildCircularIconPortal(
-            circleSize: 155,
-            label: '${q.emoji} ${q.categoryTitle}',
-            subLabel: q.englishTitle,
-            imagePath: q.imagePath,
-            ringColor: q.color,
-            badgeBg: Colors.white,
-            onTap: () {
-              setState(() {
-                _selectedQuizIndex = i;
-                _owlBubble = 'أَجِبْ عَنِ السُّؤَالِ التَّالِي لِتَرْبَحَ 10 نُجُومٍ ذَهَبِيَّةٍ!';
-              });
-            },
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildSingleGameStage(QuizItem q) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(40, 10, 40, 18),
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: Colors.white.withAlpha(248),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: q.color, width: 5),
-          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 16)],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 4,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(q.emoji, style: const TextStyle(fontSize: 64)),
-                  const SizedBox(height: 10),
-                  Text(q.categoryTitle, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: q.color)),
-                  Text(q.englishTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                  const SizedBox(height: 14),
-                  Text(q.question, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 23, color: Color(0xFF0F172A))),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 5,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(q.options.length, (int optIdx) {
-                  final String label = q.options[optIdx];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE0F2FE),
-                          foregroundColor: const Color(0xFF0369A1),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                        ),
-                        onPressed: () {
-                          if (optIdx == q.correctIndex) {
-                            _playMedia('bravo.mp3', 'أَحْسَنْتَ يَا بَطَلَ الفُصْحَى! +10 نُجُومٍ!', 10);
-                          } else {
-                            _playMedia('try_again.mp3', 'لَا بَأْسَ يَا صَدِيقِي! حَاوِلْ مَرَّةً أُخْرَى!', 0);
-                          }
-                        },
-                        child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVideoWithSidebarStage({
-    required String sectionTitle,
-    required Color headerColor,
-    required List<VideoSurahItem> items,
-    required int selectedIndex,
-    required ValueChanged<int> onSelect,
-  }) {
-    final VideoSurahItem activeItem = items[selectedIndex];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 72,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withAlpha(245),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: activeItem.color, width: 4),
-                boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 12)],
-              ),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        color: Colors.black,
-                        child: _buildNativeVideoPlayerBox(
-                          borderColor: activeItem.color,
-                          onRetry: () => _playDirectNativeVideo(activeItem.videoId),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(activeItem.arabicTitle, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: activeItem.color)),
-                      Text(activeItem.subtitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (!_isVideoExpanded) const SizedBox(width: 10),
-          if (!_isVideoExpanded)
-            Expanded(
-              flex: 28,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(238),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: headerColor, width: 3.5),
-                ),
-                child: Column(
-                  children: [
-                    Text(sectionTitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: headerColor)),
-                    const Divider(height: 10),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: items.length,
-                        itemBuilder: (BuildContext context, int index) {
-                          final VideoSurahItem surah = items[index];
-                          final bool isSelected = index == selectedIndex;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 5),
-                            child: Material(
-                              color: isSelected ? surah.color : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(14),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(14),
-                                onTap: () => onSelect(index),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        isSelected ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded,
-                                        color: isSelected ? Colors.white : surah.color,
-                                        size: 24,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              surah.arabicTitle,
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelected ? Colors.white : const Color(0xFF0F172A)),
-                                            ),
-                                            Text(
-                                              surah.subtitle,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isSelected ? const Color(0xFFFEF08A) : const Color(0xFF475569)),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
+    await _player.play(Asset
