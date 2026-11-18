@@ -1045,3 +1045,291 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
       ),
     );
   }
+
+  Widget _buildOpenBookViewer(StoryBookItem book) {
+    final StoryPageData page = book.pages[_currentPageIndex];
+    final bool isFirstPage = _currentPageIndex == 0;
+    final bool isLastPage = _currentPageIndex == book.pages.length - 1;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
+      child: Container(
+        decoration: BoxDecoration(color: const Color(0xFFFFFDF7), borderRadius: BorderRadius.circular(32), border: Border.all(color: book.color, width: 5)),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(color: book.color, borderRadius: const BorderRadius.vertical(top: Radius.circular(26))),
+              child: Row(
+                children: [
+                  const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 26),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(book.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 19))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.white.withAlpha(50), borderRadius: BorderRadius.circular(16)),
+                    child: Text('صَفْحَةُ ${_currentPageIndex + 1} مِنْ ${book.pages.length}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: Container(
+                      margin: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: page.bgTint, borderRadius: BorderRadius.circular(24), border: Border.all(color: book.color.withAlpha(110), width: 3)),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ClipRRect(borderRadius: BorderRadius.circular(21), child: Opacity(opacity: 0.35, child: Image.asset(book.imagePath, fit: BoxFit.cover))),
+                          Center(child: Text(page.emoji, style: const TextStyle(fontSize: 64))),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Container(width: 3, margin: const EdgeInsets.symmetric(vertical: 16), color: book.color.withAlpha(60)),
+                  Expanded(
+                    flex: 6,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(child: Center(child: SingleChildScrollView(child: Text(page.text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 27, height: 1.7, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)))))),
+                          if (isLastPage)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF59E0B), width: 2)),
+                              child: Text('🌟 ${book.moral}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(backgroundColor: isFirstPage ? Colors.grey.shade300 : const Color(0xFF0284C7), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
+                    onPressed: isFirstPage
+                        ? null
+                        : () {
+                            final int prev = _currentPageIndex - 1;
+                            setState(() => _currentPageIndex = prev);
+                            _playAudioTrack(book.pages[prev].audioFile, 'تَقْرَأُ الآنَ صَفْحَةَ ${prev + 1} كَامِلَةً!');
+                          },
+                    icon: const Icon(Icons.arrow_back_rounded, size: 28),
+                    label: const Text('الصَّفْحَةُ السَّابِقَةُ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  FilledButton.tonalIcon(
+                    style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
+                    onPressed: () => _playAudioTrack(page.audioFile, 'إِعَادَةُ قِرَاءَةِ صَفْحَةِ ${_currentPageIndex + 1} كَامِلَةً!'),
+                    icon: Icon(_isPlaying ? Icons.graphic_eq_rounded : Icons.volume_up_rounded, size: 26),
+                    label: Text(_isPlaying ? 'يَقْرَأُ الصَّفْحَةَ...' : 'إِعَادَةُ قِرَاءَةِ الصَّفْحَةِ 🔊', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(backgroundColor: isLastPage ? const Color(0xFF10B981) : const Color(0xFFF59E0B), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
+                    onPressed: () {
+                      if (!isLastPage) {
+                        final int next = _currentPageIndex + 1;
+                        setState(() => _currentPageIndex = next);
+                        _playAudioTrack(book.pages[next].audioFile, 'تَقْرَأُ الآنَ صَفْحَةَ ${next + 1} كَامِلَةً!');
+                      } else {
+                        _playAudioTrack('applause.mp3', '👏 أَحْسَنْتَ! أَنْهَيْتَ القِصَّةَ بِبَرَاعَةٍ! +10 نُجُومٍ!', bonusStars: 10);
+                        setState(() => _selectedBookIndex = -1);
+                      }
+                    },
+                    icon: Icon(isLastPage ? Icons.star_rounded : Icons.arrow_forward_rounded, size: 28),
+                    label: Text(isLastPage ? 'أَنْهَيْتُ القِصَّةَ (+10 ⭐)' : 'الصَّفْحَةُ التَّالِيَةُ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGamesCircleHub() {
+    return Center(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(_quizzes.length, (int i) {
+          final QuizItem q = _quizzes[i];
+          return _buildCircularIconPortal(
+            circleSize: 155,
+            label: '${q.emoji} ${q.categoryTitle}',
+            subLabel: q.englishTitle,
+            imagePath: q.imagePath,
+            ringColor: q.color,
+            badgeBg: Colors.white,
+            onTap: () {
+              setState(() => _selectedQuizIndex = i);
+              _playAudioTrack(q.audioFile, 'أَجِبْ عَنِ السُّؤَالِ التَّالِي لِتَرْبَحَ 10 نُجُومٍ!');
+            },
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildSingleGameStage(QuizItem q) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(40, 10, 40, 18),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(color: Colors.white.withAlpha(248), borderRadius: BorderRadius.circular(32), border: Border.all(color: q.color, width: 5)),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 4,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(q.emoji, style: const TextStyle(fontSize: 64)),
+                  const SizedBox(height: 10),
+                  Text(q.categoryTitle, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: q.color)),
+                  Text(q.englishTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                  const SizedBox(height: 14),
+                  Text(q.question, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 23, color: Color(0xFF0F172A))),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 5,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(q.options.length, (int optIdx) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE0F2FE), foregroundColor: const Color(0xFF0369A1), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
+                        onPressed: () {
+                          if (optIdx == q.correctIndex) {
+                            _playAudioTrack('bravo.mp3', '👏 أَحْسَنْتَ يَا بَطَلَ الفُصْحَى! +10 نُجُومٍ!', bonusStars: 10);
+                          } else {
+                            _playAudioTrack('try_again.mp3', 'لَا بَأْسَ يَا صَدِيقِي! حَاوِلْ مَرَّةً أُخْرَى!');
+                          }
+                        },
+                        child: Text(q.options[optIdx], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoWithSidebarStage({
+    required String sectionTitle,
+    required Color headerColor,
+    required List<VideoSurahItem> items,
+    required int selectedIndex,
+    required ValueChanged<int> onSelect,
+  }) {
+    final VideoSurahItem activeItem = items[selectedIndex];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 72,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.white.withAlpha(245), borderRadius: BorderRadius.circular(24), border: Border.all(color: activeItem.color, width: 4)),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        color: Colors.black,
+                        child: _buildNativeVideoPlayerBox(borderColor: activeItem.color, onRetry: () => _playDirectNativeVideo(activeItem.videoId)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(activeItem.arabicTitle, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: activeItem.color)),
+                      Text(activeItem.subtitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (!_isVideoExpanded) const SizedBox(width: 10),
+          if (!_isVideoExpanded)
+            Expanded(
+              flex: 28,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.white.withAlpha(238), borderRadius: BorderRadius.circular(24), border: Border.all(color: headerColor, width: 3.5)),
+                child: Column(
+                  children: [
+                    Text(sectionTitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: headerColor)),
+                    const Divider(height: 10),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: items.length,
+                        itemBuilder: (_, int index) {
+                          final VideoSurahItem surah = items[index];
+                          final bool isSelected = index == selectedIndex;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 5),
+                            child: Material(
+                              color: isSelected ? surah.color : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(14),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () => onSelect(index),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  child: Row(
+                                    children: [
+                                      Icon(isSelected ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded, color: isSelected ? Colors.white : surah.color, size: 24),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(surah.arabicTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelected ? Colors.white : const Color(0xFF0F172A))),
+                                            Text(surah.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isSelected ? const Color(0xFFFEF08A) : const Color(0xFF475569))),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
