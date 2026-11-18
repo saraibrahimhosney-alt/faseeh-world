@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:video_player/video_player.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
@@ -18,13 +17,14 @@ void main() async {
 }
 
 class SongItem {
-  final String title, englishTitle, subtitle, lyrics, imagePath, emoji;
+  final String title, englishTitle, subtitle, lyrics, audioFile, imagePath, emoji;
   final Color color;
   const SongItem({
     required this.title,
     required this.englishTitle,
     required this.subtitle,
     required this.lyrics,
+    required this.audioFile,
     required this.imagePath,
     required this.color,
     required this.emoji,
@@ -32,11 +32,12 @@ class SongItem {
 }
 
 class StoryPageData {
-  final String text, emoji;
+  final String text, emoji, audioFile;
   final Color bgTint;
   const StoryPageData({
     required this.text,
     required this.emoji,
+    required this.audioFile,
     required this.bgTint,
   });
 }
@@ -56,7 +57,7 @@ class StoryBookItem {
 }
 
 class QuizItem {
-  final String categoryTitle, englishTitle, question, emoji, imagePath;
+  final String categoryTitle, englishTitle, question, audioFile, emoji, imagePath;
   final Color color;
   final List<String> options;
   final int correctIndex;
@@ -64,6 +65,7 @@ class QuizItem {
     required this.categoryTitle,
     required this.englishTitle,
     required this.question,
+    required this.audioFile,
     required this.emoji,
     required this.imagePath,
     required this.color,
@@ -81,64 +83,6 @@ class VideoSurahItem {
     required this.videoId,
     required this.color,
   });
-}
-
-// ============================================================================
-// محرك صوت الطفل المبهج والتصفيق (بدون أي موسيقى نهائياً)
-// ============================================================================
-class ChildVoiceEngine {
-  static final FlutterTts _tts = FlutterTts();
-  static final AudioPlayer _sfxPlayer = AudioPlayer();
-  static bool _initialized = false;
-  static VoidCallback? onSpeechComplete;
-
-  static Future<void> init() async {
-    if (_initialized) return;
-    _initialized = true;
-    await _tts.setLanguage('ar-SA');
-    // رفع نبرة الصوت (Pitch = 1.45) ليصبح صوت طفل مبهج وحيوي
-    await _tts.setPitch(1.45);
-    await _tts.setSpeechRate(0.45);
-    await _tts.setVolume(1.0);
-    await _tts.awaitSpeakCompletion(true);
-    _tts.setCompletionHandler(() {
-      if (onSpeechComplete != null) onSpeechComplete!();
-    });
-  }
-
-  static Future<void> playApplause() async {
-    try {
-      await _sfxPlayer.stop();
-      await _sfxPlayer.play(AssetSource('audio/applause.wav'));
-    } catch (_) {}
-  }
-
-  static Future<void> playCheerPop() async {
-    try {
-      await _sfxPlayer.stop();
-      await _sfxPlayer.play(AssetSource('audio/cheer_pop.wav'));
-    } catch (_) {}
-  }
-
-  static Future<void> speakAsChild(String text, {bool withApplause = false}) async {
-    await init();
-    await _tts.stop();
-    if (withApplause) {
-      await playApplause();
-    } else {
-      await playCheerPop();
-    }
-    // تنظيف الرموز التعبيرية قبل القراءة حتى يقرأ صوت الطفل الكلمات العربية بسلاسة تامة
-    final String cleanArabic = text.replaceAll(RegExp(r'[^\u0600-\u06FF0-9\s،.؟!«»:\-]'), ' ').trim();
-    if (cleanArabic.isNotEmpty) {
-      await _tts.speak(cleanArabic);
-    }
-  }
-
-  static Future<void> stopAll() async {
-    await _tts.stop();
-    await _sfxPlayer.stop();
-  }
 }
 
 class FaseehCartoonApp extends StatelessWidget {
@@ -161,9 +105,6 @@ class FaseehCartoonApp extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// شاشة البداية الاحتفالية المبهجة بالتصفيق والبالونات وصوت الطفل
-// ============================================================================
 class FaseehCelebrationSplash extends StatefulWidget {
   const FaseehCelebrationSplash({super.key});
 
@@ -175,6 +116,7 @@ class _FaseehCelebrationSplashState extends State<FaseehCelebrationSplash>
     with TickerProviderStateMixin {
   late final AnimationController _confettiCtrl;
   late final AnimationController _bounceCtrl;
+  final AudioPlayer _splashPlayer = AudioPlayer();
   bool _navigated = false;
 
   @override
@@ -182,19 +124,17 @@ class _FaseehCelebrationSplashState extends State<FaseehCelebrationSplash>
     super.initState();
     _confettiCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
     _bounceCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 650))..repeat(reverse: true);
-
-    Future.delayed(const Duration(milliseconds: 300), () async {
-      await ChildVoiceEngine.speakAsChild(
-        'أَهْلاً وَسَهْلاً بِكُمْ يَا أَصْدِقَائِي فِي عَالَمِ فَصِيحٍ! اضْغَطُوا عَلَى الزِّرِّ الأَخْضَرِ لِنَبْدَأَ المَرَحَ وَالتَّصْفِيقَ!',
-        withApplause: true,
-      );
+    Future.delayed(const Duration(milliseconds: 250), () async {
+      try {
+        await _splashPlayer.play(AssetSource('audio/welcome.mp3'));
+      } catch (_) {}
     });
   }
 
   void _enterApp() async {
     if (_navigated || !mounted) return;
     _navigated = true;
-    await ChildVoiceEngine.playApplause();
+    await _splashPlayer.stop();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -210,6 +150,7 @@ class _FaseehCelebrationSplashState extends State<FaseehCelebrationSplash>
   void dispose() {
     _confettiCtrl.dispose();
     _bounceCtrl.dispose();
+    _splashPlayer.dispose();
     super.dispose();
   }
 
@@ -248,7 +189,6 @@ class _FaseehCelebrationSplashState extends State<FaseehCelebrationSplash>
                       color: const Color(0xFFFEF08A),
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(color: const Color(0xFFD97706), width: 3.5),
-                      boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 10)],
                     ),
                     child: const Text(
                       '🎉👏 مَرْحَباً بِكُمْ فِي عَالَمِ البَهْجَةِ وَاللُّغَةِ العَرَبِيَّةِ 👏🎉',
@@ -258,10 +198,7 @@ class _FaseehCelebrationSplashState extends State<FaseehCelebrationSplash>
                   const SizedBox(height: 12),
                   AnimatedBuilder(
                     animation: _bounceCtrl,
-                    builder: (_, child) {
-                      final double dy = -10 * _bounceCtrl.value;
-                      return Transform.translate(offset: Offset(0, dy), child: child);
-                    },
+                    builder: (_, child) => Transform.translate(offset: Offset(0, -10 * _bounceCtrl.value), child: child),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -280,7 +217,6 @@ class _FaseehCelebrationSplashState extends State<FaseehCelebrationSplash>
                       color: Colors.white.withAlpha(248),
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(color: const Color(0xFF0284C7), width: 4.5),
-                      boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 14)],
                     ),
                     child: const Column(
                       children: [
@@ -300,16 +236,18 @@ class _FaseehCelebrationSplashState extends State<FaseehCelebrationSplash>
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30), side: const BorderSide(color: Colors.white, width: 3)),
                         ),
-                        onPressed: () => ChildVoiceEngine.playApplause(),
+                        onPressed: () async {
+                          await _splashPlayer.stop();
+                          await _splashPlayer.play(AssetSource('audio/applause.mp3'));
+                        },
                         icon: const Text('👏', style: TextStyle(fontSize: 22)),
-                        label: const Text('صَفِّقْ مَعَنَا!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        label: const Text('تَشْجِيعٌ!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 14),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF10B981),
                           foregroundColor: Colors.white,
-                          elevation: 8,
                           padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 13),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30), side: const BorderSide(color: Colors.white, width: 3.5)),
                         ),
@@ -366,14 +304,12 @@ class _JoyCelebrationPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint();
-    for (int i = 0; i < 45; i++) {
+    for (int i = 0; i < 42; i++) {
       final double x = (((i * 67) % 100) / 100.0 * size.width) + math.sin((p * math.pi * 2) + i) * 26;
       final double y = (((i * 0.08) + (p * (0.7 + (i % 5) * 0.18))) % 1.0) * size.height;
       paint.color = _c[i % _c.length].withAlpha(230);
       if (i % 3 == 0) {
-        // بالونات ملونة صاعدة
-        final double by = size.height - y;
-        canvas.drawOval(Rect.fromCenter(center: Offset(x, by), width: 18, height: 24), paint);
+        canvas.drawOval(Rect.fromCenter(center: Offset(x, size.height - y), width: 18, height: 24), paint);
       } else if (i % 3 == 1) {
         canvas.drawCircle(Offset(x, y), 7.5, paint);
       } else {
@@ -386,9 +322,6 @@ class _JoyCelebrationPainter extends CustomPainter {
   bool shouldRepaint(covariant _JoyCelebrationPainter oldDelegate) => oldDelegate.p != p;
 }
 
-// ============================================================================
-// الشاشة الرئيسية والأقسام التفاعلية
-// ============================================================================
 class FaseehWorldStage extends StatefulWidget {
   const FaseehWorldStage({super.key});
 
@@ -397,6 +330,7 @@ class FaseehWorldStage extends StatefulWidget {
 }
 
 class _FaseehWorldStageState extends State<FaseehWorldStage> {
+  final AudioPlayer _player = AudioPlayer();
   final YoutubeExplode _yt = YoutubeExplode();
   VideoPlayerController? _videoController;
 
@@ -406,8 +340,9 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
 
   int _screenIndex = 0;
   int _stars = 30;
-  bool _isSpeaking = false;
+  bool _isPlaying = false;
   bool _owlBounce = false;
+  String _currentTrack = 'applause.mp3';
   String _owlBubble = 'أَهْلاً بِكَ يَا صَدِيقِي! اخْتَرْ أَيَّ أَيْقُونَةٍ دَائِرِيَّةٍ لِنَبْدَأَ!';
 
   int _selectedSongIndex = -1;
@@ -457,6 +392,7 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
       englishTitle: 'Alphabet Song',
       subtitle: 'أَلِفٌ أَرْنَبٌ.. يَجْرِي يَلْعَبُ!',
       lyrics: 'أَلِفٌ أَرْنَبٌ، يَجْرِي يَلْعَبُ، يَأْكُلُ جَزَراً كَيْ لَا يَتْعَبَ!\nبَاءٌ بَطَّةٌ، نَطَّتْ نَطَّةً، وَقَعَتْ ضَحِكَتْ مِنْهَا القِطَّةُ!\nتَاءٌ تَاجٌ، فَوْقَ الرَّأْسِ، فِيهِ الذَّهَبُ وَفِيهِ المَاسُ!',
+      audioFile: 'song_alphabet.mp3',
       imagePath: 'assets/images/card_songs.png',
       color: Color(0xFFEC4899),
       emoji: '🐰',
@@ -466,6 +402,7 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
       englishTitle: 'Morning Sun Song',
       subtitle: 'أَشْرَقَتِ الشَّمْسُ الذَّهَبِيَّةُ!',
       lyrics: 'أَشْرَقَتِ الشَّمْسُ الذَّهَبِيَّةُ، وَتَغَنَّتْ طَيْرُ الحُرِّيَّةِ!\nهَيَّا نَتَعَلَّمْ يَا أَطْفَالُ، لُغَتِي الفُصْحَى أَجْمَلُ حَالٍ!\nنَقْرَأُ، نَكْتُبُ، نَرْسُمُ فِيهَا، وَنُحِبُّ العِلْمَ وَنَحْمِيهَا!',
+      audioFile: 'song_morning.mp3',
       imagePath: 'assets/images/owl_mascot.png',
       color: Color(0xFFF59E0B),
       emoji: '☀️',
@@ -475,6 +412,7 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
       englishTitle: 'Numbers Song',
       subtitle: 'وَاحِدٌ اثْنَانِ ثَلَاثَةٌ!',
       lyrics: 'وَاحِدٌ اثْنَانِ ثَلَاثَةٌ، نَتَعَلَّمُ بِذَكَاءٍ وَحَمَاسَةٍ!\nأَرْبَعَةٌ خَمْسَةٌ سِتَّةٌ، نَقْرَأُ فِي البُسْتَانِ القِصَّةَ!\nسَبْعَةٌ ثَمَانِيَةٌ تِسْعَةٌ عَشَرَةٌ، أَرْقَامِي الفُصْحَى مُبْتَهِجَةٌ!',
+      audioFile: 'song_numbers.mp3',
       imagePath: 'assets/images/card_stories.png',
       color: Color(0xFF8B5CF6),
       emoji: '🔢',
@@ -489,10 +427,10 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
       imagePath: 'assets/images/card_stories.png',
       color: Color(0xFF059669),
       pages: [
-        StoryPageData(text: 'فِي صَبَاحٍ مُشْرِقٍ جَمِيلٍ، خَرَجَ الأَرْنَبُ الصَّغِيرُ «فَصِيحٌ» يَبْحَثُ عَنْ طَعَامٍ لَذِيذٍ فِي الحَقْلِ الأَخْضَرِ الوَاسِعِ.', emoji: '🐰🌞🌿', bgTint: Color(0xFFECFDF5)),
-        StoryPageData(text: 'فَجْأَةً، وَجَدَ فَصِيحٌ جَزَرَةً كَبِيرَةً تَلْمَعُ تَحْتَ أَشِعَّةِ الشَّمْسِ، لَكِنَّهَا كَانَتْ عَالِقَةً بِقُوَّةٍ فِي التُّرْبَةِ!', emoji: '🥕✨😲', bgTint: Color(0xFFFFFBEB)),
-        StoryPageData(text: 'نَادَى فَصِيحٌ أَصْدِقَاءَهُ السِّنْجَابَ وَالسُّلَحْفَاةَ، وَقَالَ بِلُطْفٍ وَأَدَبٍ: «هَلْ تُسَاعِدُونَنِي يَا أَصْدِقَائِي؟».', emoji: '🐿️🐢💬', bgTint: Color(0xFFF0F9FF)),
-        StoryPageData(text: 'تَعَاوَنَ الجَمِيعُ بِهِمَّةٍ وَنَشَاطٍ حَتَّى أَخْرَجُوا الجَزَرَةَ الذَّهَبِيَّةَ، وَتَقَاسَمُوهَا بِسَعَادَةٍ وَمَحَبَّةٍ كَبِيرَةٍ!', emoji: '🎉🥕❤️', bgTint: Color(0xFFFDF2F8)),
+        StoryPageData(text: 'فِي صَبَاحٍ مُشْرِقٍ جَمِيلٍ، خَرَجَ الأَرْنَبُ الصَّغِيرُ «فَصِيحٌ» يَبْحَثُ عَنْ طَعَامٍ لَذِيذٍ فِي الحَقْلِ الأَخْضَرِ الوَاسِعِ.', emoji: '🐰🌞🌿', audioFile: 'story_rabbit_p1.mp3', bgTint: Color(0xFFECFDF5)),
+        StoryPageData(text: 'فَجْأَةً، وَجَدَ فَصِيحٌ جَزَرَةً كَبِيرَةً تَلْمَعُ تَحْتَ أَشِعَّةِ الشَّمْسِ، لَكِنَّهَا كَانَتْ عَالِقَةً بِقُوَّةٍ فِي التُّرْبَةِ!', emoji: '🥕✨😲', audioFile: 'story_rabbit_p2.mp3', bgTint: Color(0xFFFFFBEB)),
+        StoryPageData(text: 'نَادَى فَصِيحٌ أَصْدِقَاءَهُ السِّنْجَابَ وَالسُّلَحْفَاةَ، وَقَالَ بِلُطْفٍ وَأَدَبٍ: «هَلْ تُسَاعِدُونَنِي يَا أَصْدِقَائِي؟».', emoji: '🐿️🐢💬', audioFile: 'story_rabbit_p3.mp3', bgTint: Color(0xFFF0F9FF)),
+        StoryPageData(text: 'تَعَاوَنَ الجَمِيعُ بِهِمَّةٍ وَنَشَاطٍ حَتَّى أَخْرَجُوا الجَزَرَةَ الذَّهَبِيَّةَ، وَتَقَاسَمُوهَا بِسَعَادَةٍ وَمَحَبَّةٍ كَبِيرَةٍ!', emoji: '🎉🥕❤️', audioFile: 'story_rabbit_p4.mp3', bgTint: Color(0xFFFDF2F8)),
       ],
     ),
     StoryBookItem(
@@ -502,63 +440,52 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
       imagePath: 'assets/images/owl_mascot.png',
       color: Color(0xFF7C3AED),
       pages: [
-        StoryPageData(text: 'فِي الغَابَةِ المَضِيئَةِ، كَانَ البُلْبُلُ الصَّغِيرُ يَخْجَلُ مِنَ الغِنَاءِ أَمَامَ طُيُورِ الغَابَةِ خَوْفاً مِنَ الخَطَأِ.', emoji: '🐦🙈🌳', bgTint: Color(0xFFF5F3FF)),
-        StoryPageData(text: 'اقْتَرَبَ مِنْهُ البُومُ الحَكِيمُ «فَصِيحٌ» وَقَالَ لَهُ بِابْتِسَامَةٍ دَافِئَةٍ: «صَوْتُكَ جَمِيلٌ يَا بُنَيَّ، وَالتَّجْرِبَةُ هِيَ طَرِيقُ النَّجَاحِ!».', emoji: '🦉💛✨', bgTint: Color(0xFFFFFBEB)),
-        StoryPageData(text: 'تَشَجَّعَ البُلْبُلُ وَانْطَلَقَ يُغَرِّدُ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ، فَصَفَّقَتْ لَهُ الطُّيُورُ بِإِعْجَابٍ وَفَرَحٍ شَدِيدٍ!', emoji: '🎶🐦👏', bgTint: Color(0xFFECFDF5)),
+        StoryPageData(text: 'فِي الغَابَةِ المَضِيئَةِ، كَانَ البُلْبُلُ الصَّغِيرُ يَخْجَلُ مِنَ الغِنَاءِ أَمَامَ طُيُورِ الغَابَةِ خَوْفاً مِنَ الخَطَأِ.', emoji: '🐦🙈🌳', audioFile: 'story_owl_p1.mp3', bgTint: Color(0xFFF5F3FF)),
+        StoryPageData(text: 'اقْتَرَبَ مِنْهُ البُومُ الحَكِيمُ «فَصِيحٌ» وَقَالَ لَهُ بِابْتِسَامَةٍ دَافِئَةٍ: «صَوْتُكَ جَمِيلٌ يَا بُنَيَّ، وَالتَّجْرِبَةُ هِيَ طَرِيقُ النَّجَاحِ!».', emoji: '🦉💛✨', audioFile: 'story_owl_p2.mp3', bgTint: Color(0xFFFFFBEB)),
+        StoryPageData(text: 'تَشَجَّعَ البُلْبُلُ وَانْطَلَقَ يُغَرِّدُ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ، فَصَفَّقَتْ لَهُ الطُّيُورُ بِإِعْجَابٍ وَفَرَحٍ شَدِيدٍ!', emoji: '🎶🐦👏', audioFile: 'story_owl_p3.mp3', bgTint: Color(0xFFECFDF5)),
       ],
     ),
   ];
 
   final List<QuizItem> _quizzes = const [
-    QuizItem(categoryTitle: 'تَحَدِّي المُفْرَدَاتِ', englishTitle: 'Vocabulary Challenge', question: 'مَا مَعْنَى كَلِمَةِ «غَدِيرٌ»؟', emoji: '💧', imagePath: 'assets/images/card_stories.png', color: Color(0xFF0284C7), options: ['نَهْرٌ صَغِيرٌ عَذْبٌ 💧', 'جَبَلٌ كَبِيرٌ ⛰️', 'رِيَاحٌ قَوِيَّةٌ 🌪️'], correctIndex: 0),
-    QuizItem(categoryTitle: 'تَحَدِّي الأَصْوَاتِ', englishTitle: 'Nature Sounds Game', question: 'مَا صَوْتُ أَوْرَاقِ الشَّجَرِ؟', emoji: '🍃', imagePath: 'assets/images/card_songs.png', color: Color(0xFF059669), options: ['زَئِيرٌ 🦁', 'حَفِيفٌ 🍃', 'خَرِيرٌ 🌊'], correctIndex: 1),
-    QuizItem(categoryTitle: 'تَحَدِّي الفُصْحَى', englishTitle: 'Classical Arabic Quiz', question: 'أَيُّ جُمْلَةٍ بِالعَرَبِيَّةِ الفُصْحَى؟', emoji: '🌟', imagePath: 'assets/images/owl_mascot.png', color: Color(0xFFF59E0B), options: ['الولد راح بدري', 'ذَهَبَ الطِّفْلُ مُبَكِّراً 🌟', 'أيمتى رح نلعب؟'], correctIndex: 1),
+    QuizItem(categoryTitle: 'تَحَدِّي المُفْرَدَاتِ', englishTitle: 'Vocabulary Challenge', question: 'مَا مَعْنَى كَلِمَةِ «غَدِيرٌ»؟', audioFile: 'quiz_1.mp3', emoji: '💧', imagePath: 'assets/images/card_stories.png', color: Color(0xFF0284C7), options: ['نَهْرٌ صَغِيرٌ عَذْبٌ 💧', 'جَبَلٌ كَبِيرٌ ⛰️', 'رِيَاحٌ قَوِيَّةٌ 🌪️'], correctIndex: 0),
+    QuizItem(categoryTitle: 'تَحَدِّي الأَصْوَاتِ', englishTitle: 'Nature Sounds Game', question: 'مَا صَوْتُ أَوْرَاقِ الشَّجَرِ؟', audioFile: 'quiz_2.mp3', emoji: '🍃', imagePath: 'assets/images/card_songs.png', color: Color(0xFF059669), options: ['زَئِيرٌ 🦁', 'حَفِيفٌ 🍃', 'خَرِيرٌ 🌊'], correctIndex: 1),
+    QuizItem(categoryTitle: 'تَحَدِّي الفُصْحَى', englishTitle: 'Classical Arabic Quiz', question: 'أَيُّ جُمْلَةٍ بِالعَرَبِيَّةِ الفُصْحَى؟', audioFile: 'quiz_3.mp3', emoji: '🌟', imagePath: 'assets/images/owl_mascot.png', color: Color(0xFFF59E0B), options: ['الولد راح بدري', 'ذَهَبَ الطِّفْلُ مُبَكِّراً 🌟', 'أيمتى رح نلعب؟'], correctIndex: 1),
   ];
 
   @override
   void initState() {
     super.initState();
-    ChildVoiceEngine.onSpeechComplete = () {
+    _player.onPlayerComplete.listen((_) {
       if (mounted) {
         setState(() {
-          _isSpeaking = false;
+          _isPlaying = false;
         });
       }
-    };
+    });
   }
 
   @override
   void dispose() {
-    ChildVoiceEngine.stopAll();
     _videoController?.dispose();
     _yt.close();
+    _player.dispose();
     super.dispose();
   }
 
-  Future<void> _speakChildText(String spokenText, String bubbleText, {int bonusStars = 0, bool applause = false}) async {
+  Future<void> _playAudioTrack(String fileName, String bubbleText, {int bonusStars = 0}) async {
     setState(() {
+      _currentTrack = fileName;
       _owlBubble = bubbleText;
-      _isSpeaking = true;
+      _isPlaying = true;
       _owlBounce = true;
       _stars += bonusStars;
     });
+    await _player.stop();
+    await _player.play(AssetSource('audio/$fileName'));
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) setState(() => _owlBounce = false);
     });
-    await ChildVoiceEngine.speakAsChild(spokenText, withApplause: applause);
-  }
-
-  // قراءة نص الصفحة الكامل بصوت الطفل دون انقطاع
-  Future<void> _readFullStoryPage(StoryBookItem book, int pageIndex) async {
-    final StoryPageData page = book.pages[pageIndex];
-    final String fullPageSpeech = (pageIndex == book.pages.length - 1)
-        ? '${page.text} ... ${book.moral}'
-        : page.text;
-    await _speakChildText(
-      fullPageSpeech,
-      'يَقْرَأُ الطِّفْلُ الآنَ صَفْحَةَ ${pageIndex + 1} كَامِلَةً مِنْ: ${book.title}',
-      applause: pageIndex == book.pages.length - 1,
-    );
   }
 
   bool get _canGoBackOneStep {
@@ -570,9 +497,9 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
   }
 
   Future<void> _handleBackOneStep() async {
-    await ChildVoiceEngine.stopAll();
+    await _player.stop();
     setState(() {
-      _isSpeaking = false;
+      _isPlaying = false;
       if (_screenIndex == 1 && _selectedSongIndex != -1) {
         _selectedSongIndex = -1;
         _owlBubble = 'اخْتَرْ أُنْشُودَةً مِنَ الدَّوَائِرِ الثَّلَاثَةِ لِتَسْتَمِعَ إِلَيْهَا!';
@@ -617,16 +544,12 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
     }
   }
 
-  Future<void> _toggleStopSpeak() async {
-    if (_isSpeaking) {
-      await ChildVoiceEngine.stopAll();
-      setState(() => _isSpeaking = false);
-    } else if (_screenIndex == 2 && _selectedBookIndex != -1) {
-      await _readFullStoryPage(_books[_selectedBookIndex], _currentPageIndex);
-    } else if (_screenIndex == 1 && _selectedSongIndex != -1) {
-      await _speakChildText(_songs[_selectedSongIndex].lyrics, _songs[_selectedSongIndex].subtitle);
+  Future<void> _toggleStopPlay() async {
+    if (_isPlaying) {
+      await _player.stop();
+      setState(() => _isPlaying = false);
     } else {
-      await _speakChildText(_owlBubble, _owlBubble);
+      await _playAudioTrack(_currentTrack, _owlBubble);
     }
   }
 
@@ -744,10 +667,10 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
                 onPressed: () async {
-                  await ChildVoiceEngine.stopAll();
+                  await _player.stop();
                   await _videoController?.pause();
                   setState(() {
-                    _isSpeaking = false;
+                    _isPlaying = false;
                     _isVideoExpanded = false;
                     _selectedSongIndex = -1;
                     _selectedBookIndex = -1;
@@ -774,10 +697,10 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
                   if (_canGoBackOneStep) {
                     await _handleBackOneStep();
                   } else {
-                    await ChildVoiceEngine.stopAll();
+                    await _player.stop();
                     await _videoController?.pause();
                     setState(() {
-                      _isSpeaking = false;
+                      _isPlaying = false;
                       _screenIndex = 0;
                     });
                   }
@@ -787,7 +710,7 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
               ),
             ),
           GestureDetector(
-            onTap: _toggleStopSpeak,
+            onTap: _toggleStopPlay,
             child: AnimatedScale(
               scale: _owlBounce ? 1.15 : 1.0,
               duration: const Duration(milliseconds: 300),
@@ -808,9 +731,9 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
           ),
           const SizedBox(width: 8),
           IconButton.filled(
-            style: IconButton.styleFrom(backgroundColor: _isSpeaking ? const Color(0xFFEF4444) : const Color(0xFF10B981), padding: const EdgeInsets.all(10)),
-            onPressed: _toggleStopSpeak,
-            icon: Icon(_isSpeaking ? Icons.stop_rounded : Icons.record_voice_over_rounded, size: 26),
+            style: IconButton.styleFrom(backgroundColor: _isPlaying ? const Color(0xFFEF4444) : const Color(0xFF10B981), padding: const EdgeInsets.all(10)),
+            onPressed: _toggleStopPlay,
+            icon: Icon(_isPlaying ? Icons.stop_rounded : Icons.volume_up_rounded, size: 26),
           ),
           const SizedBox(width: 8),
           Container(
@@ -879,7 +802,6 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // عند الضغط على الأناشيد: يفتح دوائر الأناشيد فقط مع تصفيق، ولا يبدأ أي نشيد تلقائياً
             _buildCircularIconPortal(
               label: '🎵 الأَنَاشِيدُ',
               subLabel: 'Arabic Chants',
@@ -887,10 +809,9 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
               ringColor: const Color(0xFFEC4899),
               badgeBg: const Color(0xFFFDF2F8),
               onTap: () async {
-                await ChildVoiceEngine.stopAll();
-                await ChildVoiceEngine.playApplause();
+                await _player.stop();
                 setState(() {
-                  _isSpeaking = false;
+                  _isPlaying = false;
                   _screenIndex = 1;
                   _selectedSongIndex = -1;
                   _owlBubble = '👏 اخْتَرْ أُنْشُودَةً مِنَ الدَّوَائِرِ وَاضْغَطْ عَلَيْهَا لِتَبْدَأَ!';
@@ -898,7 +819,6 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
               },
             ),
             const SizedBox(width: 14),
-            // عند الضغط على القصص: يفتح دوائر القصص فقط مع تصفيق، ولا تبدأ أي قصة تلقائياً
             _buildCircularIconPortal(
               label: '📖 القِصَصُ',
               subLabel: 'Interactive Stories',
@@ -906,10 +826,9 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
               ringColor: const Color(0xFF8B5CF6),
               badgeBg: const Color(0xFFF5F3FF),
               onTap: () async {
-                await ChildVoiceEngine.stopAll();
-                await ChildVoiceEngine.playApplause();
+                await _player.stop();
                 setState(() {
-                  _isSpeaking = false;
+                  _isPlaying = false;
                   _screenIndex = 2;
                   _selectedBookIndex = -1;
                   _owlBubble = '👏 اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ وَاضْغَطْ عَلَيْهَا لِتَقْرَأَهَا!';
@@ -924,10 +843,9 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
               ringColor: const Color(0xFFF59E0B),
               badgeBg: const Color(0xFFFFFBEB),
               onTap: () async {
-                await ChildVoiceEngine.stopAll();
-                await ChildVoiceEngine.playApplause();
+                await _player.stop();
                 setState(() {
-                  _isSpeaking = false;
+                  _isPlaying = false;
                   _screenIndex = 3;
                   _selectedQuizIndex = -1;
                   _owlBubble = '👏 اخْتَرْ لُعْبَةً مِنَ التَّحَدِّيَاتِ الثَّلَاثَةِ!';
@@ -942,10 +860,10 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
               ringColor: const Color(0xFF059669),
               badgeBg: const Color(0xFFECFDF5),
               onTap: () async {
-                await ChildVoiceEngine.stopAll();
+                await _player.stop();
                 final VideoSurahItem first = _tafsirVideos[_selectedTafsirIndex];
                 setState(() {
-                  _isSpeaking = false;
+                  _isPlaying = false;
                   _isVideoExpanded = false;
                   _screenIndex = 4;
                   _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ بِاللُّغَةِ الإِنْجِلِيزِيَّةِ! اخْتَرِ السُّورَةَ!';
@@ -962,10 +880,10 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
               ringColor: const Color(0xFF0284C7),
               badgeBg: const Color(0xFFF0F9FF),
               onTap: () async {
-                await ChildVoiceEngine.stopAll();
+                await _player.stop();
                 final VideoSurahItem first = _recitationVideos[_selectedRecitationIndex];
                 setState(() {
-                  _isSpeaking = false;
+                  _isPlaying = false;
                   _isVideoExpanded = false;
                   _screenIndex = 5;
                   _owlBubble = 'تِلَاوَةُ القُرْآنِ الكَرِيمِ! اخْتَرِ السُّورَةَ مِنَ القَائِمَةِ!';
@@ -1041,9 +959,8 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
             ringColor: s.color,
             badgeBg: Colors.white,
             onTap: () {
-              // يبدأ إلقاء النشيد بصوت الطفل فقط عند الضغط على دائرته
               setState(() => _selectedSongIndex = i);
-              _speakChildText(s.lyrics, s.subtitle, bonusStars: 5, applause: true);
+              _playAudioTrack(s.audioFile, s.subtitle, bonusStars: 5);
             },
           );
         }),
@@ -1052,6 +969,7 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
   }
 
   Widget _buildSingleSongPlayer(SongItem s) {
+    final bool active = _currentTrack == s.audioFile && _isPlaying;
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 8, 32, 16),
       child: Container(
@@ -1088,10 +1006,10 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
                     child: Text(s.lyrics, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, height: 1.75, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                   ),
                   FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: _isSpeaking ? const Color(0xFF10B981) : s.color, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
-                    onPressed: () => _speakChildText(s.lyrics, s.subtitle, bonusStars: 2),
-                    icon: Icon(_isSpeaking ? Icons.graphic_eq_rounded : Icons.record_voice_over_rounded, size: 30),
-                    label: Text(_isSpeaking ? 'الطِّفْلُ يُنْشِدُ الآنَ...' : 'إِعَادَةُ الأُنْشُودَةِ بِصَوْتِ الطِّفْلِ 🔊', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    style: FilledButton.styleFrom(backgroundColor: active ? const Color(0xFF10B981) : s.color, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
+                    onPressed: () => _playAudioTrack(s.audioFile, s.subtitle, bonusStars: 2),
+                    icon: Icon(active ? Icons.graphic_eq_rounded : Icons.volume_up_rounded, size: 30),
+                    label: Text(active ? 'الأُنْشُودَةُ تَعْمَلُ الآنَ...' : 'إِعَادَةُ الأُنْشُودَةِ 🔊', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   ),
                 ],
               ),
@@ -1116,308 +1034,14 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
             ringColor: book.color,
             badgeBg: Colors.white,
             onTap: () {
-              // تفتح القصة وتبدأ قراءة الصفحة الأولى كاملة فقط بعد الضغط على دائرتها
               setState(() {
                 _selectedBookIndex = i;
                 _currentPageIndex = 0;
               });
-              _readFullStoryPage(book, 0);
+              _playAudioTrack(book.pages[0].audioFile, 'تَقْرَأُ الآنَ صَفْحَةَ ١ كَامِلَةً مِنْ: ${book.title}');
             },
           );
         }),
       ),
     );
   }
-
-  Widget _buildOpenBookViewer(StoryBookItem book) {
-    final StoryPageData page = book.pages[_currentPageIndex];
-    final bool isFirstPage = _currentPageIndex == 0;
-    final bool isLastPage = _currentPageIndex == book.pages.length - 1;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-      child: Container(
-        decoration: BoxDecoration(color: const Color(0xFFFFFDF7), borderRadius: BorderRadius.circular(32), border: Border.all(color: book.color, width: 5)),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              decoration: BoxDecoration(color: book.color, borderRadius: const BorderRadius.vertical(top: Radius.circular(26))),
-              child: Row(
-                children: [
-                  const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 26),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(book.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 19))),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.white.withAlpha(50), borderRadius: BorderRadius.circular(16)),
-                    child: Text('صَفْحَةُ ${_currentPageIndex + 1} مِنْ ${book.pages.length}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: Container(
-                      margin: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(color: page.bgTint, borderRadius: BorderRadius.circular(24), border: Border.all(color: book.color.withAlpha(110), width: 3)),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          ClipRRect(borderRadius: BorderRadius.circular(21), child: Opacity(opacity: 0.35, child: Image.asset(book.imagePath, fit: BoxFit.cover))),
-                          Center(child: Text(page.emoji, style: const TextStyle(fontSize: 64))),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Container(width: 3, margin: const EdgeInsets.symmetric(vertical: 16), color: book.color.withAlpha(60)),
-                  Expanded(
-                    flex: 6,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Expanded(child: Center(child: SingleChildScrollView(child: Text(page.text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 27, height: 1.7, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)))))),
-                          if (isLastPage)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF59E0B), width: 2)),
-                              child: Text('🌟 ${book.moral}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: isFirstPage ? Colors.grey.shade300 : const Color(0xFF0284C7), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                    onPressed: isFirstPage
-                        ? null
-                        : () {
-                            final int prev = _currentPageIndex - 1;
-                            setState(() => _currentPageIndex = prev);
-                            _readFullStoryPage(book, prev);
-                          },
-                    icon: const Icon(Icons.arrow_back_rounded, size: 28),
-                    label: const Text('الصَّفْحَةُ السَّابِقَةُ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
-                  FilledButton.tonalIcon(
-                    style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                    onPressed: () => _readFullStoryPage(book, _currentPageIndex),
-                    icon: Icon(_isSpeaking ? Icons.graphic_eq_rounded : Icons.record_voice_over_rounded, size: 26),
-                    label: Text(_isSpeaking ? 'الطِّفْلُ يَقْرَأُ الصَّفْحَةَ...' : 'إِعَادَةُ قِرَاءَةِ الصَّفْحَةِ 🔊', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: isLastPage ? const Color(0xFF10B981) : const Color(0xFFF59E0B), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                    onPressed: () {
-                      if (!isLastPage) {
-                        final int next = _currentPageIndex + 1;
-                        setState(() => _currentPageIndex = next);
-                        _readFullStoryPage(book, next);
-                      } else {
-                        _speakChildText(
-                          'أَحْسَنْتَ يَا بَطَلُ! أَنْهَيْتَ قِرَاءَةَ القِصَّةِ بِبَرَاعَةٍ وَرَبِحْتَ عَشْرَ نُجُومٍ!',
-                          '👏 أَحْسَنْتَ! أَنْهَيْتَ القِصَّةَ بِبَرَاعَةٍ! +10 نُجُومٍ!',
-                          bonusStars: 10,
-                          applause: true,
-                        );
-                        setState(() => _selectedBookIndex = -1);
-                      }
-                    },
-                    icon: Icon(isLastPage ? Icons.star_rounded : Icons.arrow_forward_rounded, size: 28),
-                    label: Text(isLastPage ? 'أَنْهَيْتُ القِصَّةَ (+10 ⭐)' : 'الصَّفْحَةُ التَّالِيَةُ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGamesCircleHub() {
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(_quizzes.length, (int i) {
-          final QuizItem q = _quizzes[i];
-          return _buildCircularIconPortal(
-            circleSize: 155,
-            label: '${q.emoji} ${q.categoryTitle}',
-            subLabel: q.englishTitle,
-            imagePath: q.imagePath,
-            ringColor: q.color,
-            badgeBg: Colors.white,
-            onTap: () {
-              setState(() => _selectedQuizIndex = i);
-              _speakChildText(q.question, 'أَجِبْ عَنِ السُّؤَالِ التَّالِي لِتَرْبَحَ 10 نُجُومٍ!');
-            },
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildSingleGameStage(QuizItem q) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(40, 10, 40, 18),
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(color: Colors.white.withAlpha(248), borderRadius: BorderRadius.circular(32), border: Border.all(color: q.color, width: 5)),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 4,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(q.emoji, style: const TextStyle(fontSize: 64)),
-                  const SizedBox(height: 10),
-                  Text(q.categoryTitle, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: q.color)),
-                  Text(q.englishTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                  const SizedBox(height: 14),
-                  Text(q.question, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 23, color: Color(0xFF0F172A))),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 5,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(q.options.length, (int optIdx) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE0F2FE), foregroundColor: const Color(0xFF0369A1), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                        onPressed: () {
-                          if (optIdx == q.correctIndex) {
-                            _speakChildText('أَحْسَنْتَ يَا بَطَلَ الفُصْحَى! إِجَابَةٌ صَحِيحَةٌ وَرَائِعَةٌ!', '👏 أَحْسَنْتَ يَا بَطَلَ الفُصْحَى! +10 نُجُومٍ!', bonusStars: 10, applause: true);
-                          } else {
-                            _speakChildText('لَا بَأْسَ يَا صَدِيقِي، حَاوِلْ مَرَّةً أُخْرَى!', 'لَا بَأْسَ يَا صَدِيقِي! حَاوِلْ مَرَّةً أُخْرَى!');
-                          }
-                        },
-                        child: Text(q.options[optIdx], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVideoWithSidebarStage({
-    required String sectionTitle,
-    required Color headerColor,
-    required List<VideoSurahItem> items,
-    required int selectedIndex,
-    required ValueChanged<int> onSelect,
-  }) {
-    final VideoSurahItem activeItem = items[selectedIndex];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 72,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.white.withAlpha(245), borderRadius: BorderRadius.circular(24), border: Border.all(color: activeItem.color, width: 4)),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        color: Colors.black,
-                        child: _buildNativeVideoPlayerBox(borderColor: activeItem.color, onRetry: () => _playDirectNativeVideo(activeItem.videoId)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(activeItem.arabicTitle, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: activeItem.color)),
-                      Text(activeItem.subtitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (!_isVideoExpanded) const SizedBox(width: 10),
-          if (!_isVideoExpanded)
-            Expanded(
-              flex: 28,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.white.withAlpha(238), borderRadius: BorderRadius.circular(24), border: Border.all(color: headerColor, width: 3.5)),
-                child: Column(
-                  children: [
-                    Text(sectionTitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: headerColor)),
-                    const Divider(height: 10),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: items.length,
-                        itemBuilder: (_, int index) {
-                          final VideoSurahItem surah = items[index];
-                          final bool isSelected = index == selectedIndex;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 5),
-                            child: Material(
-                              color: isSelected ? surah.color : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(14),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(14),
-                                onTap: () => onSelect(index),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                  child: Row(
-                                    children: [
-                                      Icon(isSelected ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded, color: isSelected ? Colors.white : surah.color, size: 24),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(surah.arabicTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelected ? Colors.white : const Color(0xFF0F172A))),
-                                            Text(surah.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isSelected ? const Color(0xFFFEF08A) : const Color(0xFF475569))),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
