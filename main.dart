@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -35,10 +36,14 @@ class StoryPageData {
   final String text;
   final String emoji;
   final Color bgTint;
+  final int startSec;
+  final int durationSec;
   const StoryPageData({
     required this.text,
     required this.emoji,
     required this.bgTint,
+    required this.startSec,
+    required this.durationSec,
   });
 }
 
@@ -47,7 +52,7 @@ class StoryBookItem {
   final String moral;
   final String audioFile;
   final Color color;
-  final List pages;
+  final List<StoryPageData> pages;
   const StoryBookItem({
     required this.title,
     required this.moral,
@@ -60,7 +65,7 @@ class StoryBookItem {
 class QuizItem {
   final String question;
   final String emoji;
-  final List options;
+  final List<String> options;
   final int correctIndex;
   const QuizItem({
     required this.question,
@@ -70,14 +75,14 @@ class QuizItem {
   });
 }
 
-class TafsirVideoItem {
+class VideoSurahItem {
   final String arabicTitle;
-  final String englishTitle;
+  final String subtitle;
   final String videoId;
   final Color color;
-  const TafsirVideoItem({
+  const VideoSurahItem({
     required this.arabicTitle,
-    required this.englishTitle,
+    required this.subtitle,
     required this.videoId,
     required this.color,
   });
@@ -111,19 +116,20 @@ class FaseehWorldStage extends StatefulWidget {
   const FaseehWorldStage({super.key});
 
   @override
-  State createState() {
-    return _FaseehWorldStageState();
-  }
+  State<FaseehWorldStage> createState() => _FaseehWorldStageState();
 }
 
-class _FaseehWorldStageState extends State {
+class _FaseehWorldStageState extends State<FaseehWorldStage> {
   final AudioPlayer _player = AudioPlayer();
   final YoutubeExplode _yt = YoutubeExplode();
   VideoPlayerController? _videoController;
+  Timer? _storySegmentTimer;
+
   bool _isVideoLoading = false;
   String? _videoError;
+  bool _isVideoExpanded = false; // للتحكم في تكبير شاشة الفيديو مع إمكانية إظهار/إخفاء القائمة
 
-  int _screenIndex = 0;
+  int _screenIndex = 0; // 0: الرئيسية, 1: الأناشيد, 2: القصص, 3: الألعاب, 4: التفسير, 5: التلاوة
   int _stars = 30;
   bool _isPlaying = false;
   bool _owlBounce = false;
@@ -133,47 +139,45 @@ class _FaseehWorldStageState extends State {
   int _selectedBookIndex = -1;
   int _currentPageIndex = 0;
   int _selectedTafsirIndex = 0;
-  int _recitationIndex = 0;
+  int _selectedRecitationIndex = 0;
 
-  final List _recitationVideoIds = const [
-    'bP1jjGxwdEs',
-    'enlsnMoMAsI',
-    '7ITyHlnzUkY',
-    'FN6R21YEyeA',
-    '3gbEFfKW-UM',
-    'BqVobCoQv4I',
-    'zav5SzRNPCs',
-    'FzPKrwNrh_A',
-    'JI8z72h5sUA',
-    'gNaPoAU2ojg',
-    'MORw76wrIMU',
-    'yjomUlM-MZU',
-    'KBXMbrZijsM',
-    'LRK987yfTPQ',
-    'CS_86YCKaFY',
-    'EYHSmenebc8',
-    'rKnOWbZ6OjA',
-    '5DTT5UPnU9Q',
+  // قائمة سور تلاوة القرآن الكريم للاختيار المباشر
+  final List<VideoSurahItem> _recitationVideos = const [
+    VideoSurahItem(arabicTitle: '١. سورة الفاتحة', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'bP1jjGxwdEs', color: Color(0xFF0284C7)),
+    VideoSurahItem(arabicTitle: '٢. سورة الناس', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'enlsnMoMAsI', color: Color(0xFF059669)),
+    VideoSurahItem(arabicTitle: '٣. سورة الفلق', subtitle: 'تلاوة تعليمية للأطفال', videoId: '7ITyHlnzUkY', color: Color(0xFF7C3AED)),
+    VideoSurahItem(arabicTitle: '٤. سورة الإخلاص', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'FN6R21YEyeA', color: Color(0xFFD97706)),
+    VideoSurahItem(arabicTitle: '٥. سورة المسد', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'JI8z72h5sUA', color: Color(0xFFDC2626)),
+    VideoSurahItem(arabicTitle: '٦. سورة النصر', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'gNaPoAU2ojg', color: Color(0xFF10B981)),
+    VideoSurahItem(arabicTitle: '٧. سورة الكافرون', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'MORw76wrIMU', color: Color(0xFF2563EB)),
+    VideoSurahItem(arabicTitle: '٨. سورة الكوثر', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'yjomUlM-MZU', color: Color(0xFFDB2777)),
+    VideoSurahItem(arabicTitle: '٩. سورة الماعون', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'KBXMbrZijsM', color: Color(0xFF0D9488)),
+    VideoSurahItem(arabicTitle: '١٠. سورة قريش', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'LRK987yfTPQ', color: Color(0xFF9333EA)),
+    VideoSurahItem(arabicTitle: '١١. سورة الفيل', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'CS_86YCKaFY', color: Color(0xFFEA580C)),
+    VideoSurahItem(arabicTitle: '١٢. سورة الهمزة', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'EYHSmenebc8', color: Color(0xFFE11D48)),
+    VideoSurahItem(arabicTitle: '١٣. سورة العصر', subtitle: 'تلاوة تعليمية للأطفال', videoId: 'rKnOWbZ6OjA', color: Color(0xFF0891B2)),
+    VideoSurahItem(arabicTitle: '١٤. سورة التكاثر', subtitle: 'تلاوة تعليمية للأطفال', videoId: '5DTT5UPnU9Q', color: Color(0xFF4F46E5)),
   ];
 
-  final List _tafsirVideos = const [
-    TafsirVideoItem(arabicTitle: '١. سورة الفاتحة', englishTitle: 'Surah Al-Fatihah (The Opening)', videoId: '3gbEFfKW-UM', color: Color(0xFF059669)),
-    TafsirVideoItem(arabicTitle: '٢. سورة الناس', englishTitle: 'Surah An-Nas (Mankind)', videoId: 'BqVobCoQv4I', color: Color(0xFF0284C7)),
-    TafsirVideoItem(arabicTitle: '٣. سورة الفلق', englishTitle: 'Surah Al-Falaq (The Daybreak)', videoId: 'zav5SzRNPCs', color: Color(0xFF7C3AED)),
-    TafsirVideoItem(arabicTitle: '٤. سورة الإخلاص', englishTitle: 'Surah Al-Ikhlas (The Purity)', videoId: 'FzPKrwNrh_A', color: Color(0xFFD97706)),
-    TafsirVideoItem(arabicTitle: '٥. سورة المسد', englishTitle: 'Surah Al-Masad (The Palm Fiber)', videoId: 'JI8z72h5sUA', color: Color(0xFFDC2626)),
-    TafsirVideoItem(arabicTitle: '٦. سورة النصر', englishTitle: 'Surah An-Nasr (The Victory)', videoId: 'gNaPoAU2ojg', color: Color(0xFF10B981)),
-    TafsirVideoItem(arabicTitle: '٧. سورة الكافرون', englishTitle: 'Surah Al-Kafirun (The Disbelievers)', videoId: 'MORw76wrIMU', color: Color(0xFF2563EB)),
-    TafsirVideoItem(arabicTitle: '٨. سورة الكوثر', englishTitle: 'Surah Al-Kawthar (Abundance)', videoId: 'yjomUlM-MZU', color: Color(0xFFDB2777)),
-    TafsirVideoItem(arabicTitle: '٩. سورة الماعون', englishTitle: 'Surah Al-Maun (Small Kindnesses)', videoId: 'KBXMbrZijsM', color: Color(0xFF0D9488)),
-    TafsirVideoItem(arabicTitle: '١٠. سورة قريش', englishTitle: 'Surah Quraysh (The Tribe of Quraysh)', videoId: 'LRK987yfTPQ', color: Color(0xFF9333EA)),
-    TafsirVideoItem(arabicTitle: '١١. سورة الفيل', englishTitle: 'Surah Al-Fil (The Elephant)', videoId: 'CS_86YCKaFY', color: Color(0xFFEA580C)),
-    TafsirVideoItem(arabicTitle: '١٢. سورة الهمزة', englishTitle: 'Surah Al-Humazah (The Slanderer)', videoId: 'EYHSmenebc8', color: Color(0xFFE11D48)),
-    TafsirVideoItem(arabicTitle: '١٣. سورة العصر', englishTitle: 'Surah Al-Asr (The Time)', videoId: 'rKnOWbZ6OjA', color: Color(0xFF0891B2)),
-    TafsirVideoItem(arabicTitle: '١٤. سورة التكاثر', englishTitle: 'Surah At-Takathur (Competition for More)', videoId: '5DTT5UPnU9Q', color: Color(0xFF4F46E5)),
+  // قائمة سور تفسير القرآن بالإنجليزية
+  final List<VideoSurahItem> _tafsirVideos = const [
+    VideoSurahItem(arabicTitle: '١. سورة الفاتحة', subtitle: 'Surah Al-Fatihah (The Opening)', videoId: '3gbEFfKW-UM', color: Color(0xFF059669)),
+    VideoSurahItem(arabicTitle: '٢. سورة الناس', subtitle: 'Surah An-Nas (Mankind)', videoId: 'BqVobCoQv4I', color: Color(0xFF0284C7)),
+    VideoSurahItem(arabicTitle: '٣. سورة الفلق', subtitle: 'Surah Al-Falaq (The Daybreak)', videoId: 'zav5SzRNPCs', color: Color(0xFF7C3AED)),
+    VideoSurahItem(arabicTitle: '٤. سورة الإخلاص', subtitle: 'Surah Al-Ikhlas (The Purity)', videoId: 'FzPKrwNrh_A', color: Color(0xFFD97706)),
+    VideoSurahItem(arabicTitle: '٥. سورة المسد', subtitle: 'Surah Al-Masad (The Palm Fiber)', videoId: 'JI8z72h5sUA', color: Color(0xFFDC2626)),
+    VideoSurahItem(arabicTitle: '٦. سورة النصر', subtitle: 'Surah An-Nasr (The Victory)', videoId: 'gNaPoAU2ojg', color: Color(0xFF10B981)),
+    VideoSurahItem(arabicTitle: '٧. سورة الكافرون', subtitle: 'Surah Al-Kafirun (The Disbelievers)', videoId: 'MORw76wrIMU', color: Color(0xFF2563EB)),
+    VideoSurahItem(arabicTitle: '٨. سورة الكوثر', subtitle: 'Surah Al-Kawthar (Abundance)', videoId: 'yjomUlM-MZU', color: Color(0xFFDB2777)),
+    VideoSurahItem(arabicTitle: '٩. سورة الماعون', subtitle: 'Surah Al-Maun (Small Kindnesses)', videoId: 'KBXMbrZijsM', color: Color(0xFF0D9488)),
+    VideoSurahItem(arabicTitle: '١٠. سورة قريش', subtitle: 'Surah Quraysh (The Tribe of Quraysh)', videoId: 'LRK987yfTPQ', color: Color(0xFF9333EA)),
+    VideoSurahItem(arabicTitle: '١١. سورة الفيل', subtitle: 'Surah Al-Fil (The Elephant)', videoId: 'CS_86YCKaFY', color: Color(0xFFEA580C)),
+    VideoSurahItem(arabicTitle: '١٢. سورة الهمزة', subtitle: 'Surah Al-Humazah (The Slanderer)', videoId: 'EYHSmenebc8', color: Color(0xFFE11D48)),
+    VideoSurahItem(arabicTitle: '١٣. سورة العصر', subtitle: 'Surah Al-Asr (The Time)', videoId: 'rKnOWbZ6OjA', color: Color(0xFF0891B2)),
+    VideoSurahItem(arabicTitle: '١٤. سورة التكاثر', subtitle: 'Surah At-Takathur (Competition for More)', videoId: '5DTT5UPnU9Q', color: Color(0xFF4F46E5)),
   ];
 
-  final List _songs = const [
+  final List<SongItem> _songs = const [
     SongItem(
       title: 'أُنْشُودَةُ حُرُوفِ الهِجَاءِ',
       subtitle: 'أَلِفٌ أَرْنَبْ.. يَجْرِي يَلْعَبْ!',
@@ -200,17 +204,42 @@ class _FaseehWorldStageState extends State {
     ),
   ];
 
-  final List _books = const [
+  // تقسيم توقيت الصوت لكل صفحة في القصة بدقة
+  final List<StoryBookItem> _books = const [
     StoryBookItem(
       title: 'الأَرْنَبُ الصَّغِيرُ وَسِرُّ الجَزَرَةِ الذَّهَبِيَّةِ',
       moral: 'الحِكْمَةُ: بِالتَّعَاوُنِ وَالكَلِمَةِ الطَّيِّبَةِ نُنْجِزُ أَصْعَبَ المَهَامِّ!',
       audioFile: 'story_rabbit.mp3',
       color: Color(0xFF059669),
       pages: [
-        StoryPageData(text: 'فِي صَبَاحٍ مُشْرِقٍ جَمِيلٍ، خَرَجَ الأَرْنَبُ الصَّغِيرُ «فَصِيحٌ» يَبْحَثُ عَنْ طَعَامٍ لَذِيذٍ فِي الحَقْلِ الأَخْضَرِ الوَاسِعِ.', emoji: '🐰🌞🌿', bgTint: Color(0xFFECFDF5)),
-        StoryPageData(text: 'فَجْأَةً، وَجَدَ فَصِيحٌ جَزَرَةً كَبِيرَةً تَلْمَعُ تَحْتَ أَشِعَّةِ الشَّمْسِ، لَكِنَّهَا كَانَتْ عَالِقَةً بِقُوَّةٍ فِي التُّرْبَةِ!', emoji: '🥕✨😲', bgTint: Color(0xFFFFFBEB)),
-        StoryPageData(text: 'نَادَى فَصِيحٌ أَصْدِقَاءَهُ السِّنْجَابَ وَالسُّلَحْفَاةَ، وَقَالَ بِلُطْفٍ وَأَدَبٍ: «هَلْ تُسَاعِدُونَنِي يَا أَصْدِقَائِي؟».', emoji: '🐿️🐢💬', bgTint: Color(0xFFF0F9FF)),
-        StoryPageData(text: 'تَعَاوَنَ الجَمِيعُ بِهِمَّةٍ وَنَشَاطٍ حَتَّى أَخْرَجُوا الجَزَرَةَ الذَّهَبِيَّةَ، وَتَقَاسَمُوهَا بِسَعَادَةٍ وَمَحَبَّةٍ كَبِيرَةٍ!', emoji: '🎉🥕❤️', bgTint: Color(0xFFFDF2F8)),
+        StoryPageData(
+          text: 'فِي صَبَاحٍ مُشْرِقٍ جَمِيلٍ، خَرَجَ الأَرْنَبُ الصَّغِيرُ «فَصِيحٌ» يَبْحَثُ عَنْ طَعَامٍ لَذِيذٍ فِي الحَقْلِ الأَخْضَرِ الوَاسِعِ.',
+          emoji: '🐰🌞🌿',
+          bgTint: Color(0xFFECFDF5),
+          startSec: 0,
+          durationSec: 8,
+        ),
+        StoryPageData(
+          text: 'فَجْأَةً، وَجَدَ فَصِيحٌ جَزَرَةً كَبِيرَةً تَلْمَعُ تَحْتَ أَشِعَّةِ الشَّمْسِ، لَكِنَّهَا كَانَتْ عَالِقَةً بِقُوَّةٍ فِي التُّرْبَةِ!',
+          emoji: '🥕✨😲',
+          bgTint: Color(0xFFFFFBEB),
+          startSec: 8,
+          durationSec: 8,
+        ),
+        StoryPageData(
+          text: 'نَادَى فَصِيحٌ أَصْدِقَاءَهُ السِّنْجَابَ وَالسُّلَحْفَاةَ، وَقَالَ بِلُطْفٍ وَأَدَبٍ: «هَلْ تُسَاعِدُونَنِي يَا أَصْدِقَائِي؟».',
+          emoji: '🐿️🐢💬',
+          bgTint: Color(0xFFF0F9FF),
+          startSec: 16,
+          durationSec: 8,
+        ),
+        StoryPageData(
+          text: 'تَعَاوَنَ الجَمِيعُ بِهِمَّةٍ وَنَشَاطٍ حَتَّى أَخْرَجُوا الجَزَرَةَ الذَّهَبِيَّةَ، وَتَقَاسَمُوهَا بِسَعَادَةٍ وَمَحَبَّةٍ كَبِيرَةٍ!',
+          emoji: '🎉🥕❤️',
+          bgTint: Color(0xFFFDF2F8),
+          startSec: 24,
+          durationSec: 12,
+        ),
       ],
     ),
     StoryBookItem(
@@ -219,14 +248,32 @@ class _FaseehWorldStageState extends State {
       audioFile: 'story_owl.mp3',
       color: Color(0xFF7C3AED),
       pages: [
-        StoryPageData(text: 'فِي الغَابَةِ المَضِيئَةِ، كَانَ البُلْبُلُ الصَّغِيرُ يَخْجَلُ مِنَ الغِنَاءِ أَمَامَ طُيُورِ الغَابَةِ خَوْفاً مِنَ الخَطَأِ.', emoji: '🐦🙈🌳', bgTint: Color(0xFFF5F3FF)),
-        StoryPageData(text: 'اقْتَرَبَ مِنْهُ البُومُ الحَكِيمُ «فَصِيحٌ» وَقَالَ لَهُ بِابْتِسَامَةٍ دَافِئَةٍ: «صَوْتُكَ جَمِيلٌ يَا بُنَيَّ، وَالتَّجْرِبَةُ هِيَ طَرِيقُ النَّجَاحِ!».', emoji: '🦉💛✨', bgTint: Color(0xFFFFFBEB)),
-        StoryPageData(text: 'تَشَجَّعَ البُلْبُلُ وَانْطَلَقَ يُغَرِّدُ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ، فَصَفَّقَتْ لَهُ الطُّيُورُ بِإِعْجَابٍ وَفَرَحٍ شَدِيدٍ!', emoji: '🎶🐦👏', bgTint: Color(0xFFECFDF5)),
+        StoryPageData(
+          text: 'فِي الغَابَةِ المَضِيئَةِ، كَانَ البُلْبُلُ الصَّغِيرُ يَخْجَلُ مِنَ الغِنَاءِ أَمَامَ طُيُورِ الغَابَةِ خَوْفاً مِنَ الخَطَأِ.',
+          emoji: '🐦🙈🌳',
+          bgTint: Color(0xFFF5F3FF),
+          startSec: 0,
+          durationSec: 9,
+        ),
+        StoryPageData(
+          text: 'اقْتَرَبَ مِنْهُ البُومُ الحَكِيمُ «فَصِيحٌ» وَقَالَ لَهُ بِابْتِسَامَةٍ دَافِئَةٍ: «صَوْتُكَ جَمِيلٌ يَا بُنَيَّ، وَالتَّجْرِبَةُ هِيَ طَرِيقُ النَّجَاحِ!».',
+          emoji: '🦉💛✨',
+          bgTint: Color(0xFFFFFBEB),
+          startSec: 9,
+          durationSec: 10,
+        ),
+        StoryPageData(
+          text: 'تَشَجَّعَ البُلْبُلُ وَانْطَلَقَ يُغَرِّدُ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ، فَصَفَّقَتْ لَهُ الطُّيُورُ بِإِعْجَابٍ وَفَرَحٍ شَدِيدٍ!',
+          emoji: '🎶🐦👏',
+          bgTint: Color(0xFFECFDF5),
+          startSec: 19,
+          durationSec: 12,
+        ),
       ],
     ),
   ];
 
-  final List _quizzes = const [
+  final List<QuizItem> _quizzes = const [
     QuizItem(question: 'مَا مَعْنَى كَلِمَةِ «غَدِيرٌ»؟', emoji: '💧', options: ['نَهْرٌ صَغِيرٌ عَذْبٌ 💧', 'جَبَلٌ كَبِيرٌ ⛰️', 'رِيَاحٌ قَوِيَّةٌ 🌪️'], correctIndex: 0),
     QuizItem(question: 'مَا صَوْتُ أَوْرَاقِ الشَّجَرِ؟', emoji: '🍃', options: ['زَئِيرٌ 🦁', 'حَفِيفٌ 🍃', 'خَرِيرٌ 🌊'], correctIndex: 1),
     QuizItem(question: 'أَيُّ جُمْلَةٍ بِالعَرَبِيَّةِ الفُصْحَى؟', emoji: '🌟', options: ['الولد راح بدري', 'ذَهَبَ الطِّفْلُ مُبَكِّراً 🌟', 'أيمتى رح نلعب؟'], correctIndex: 1),
@@ -236,6 +283,7 @@ class _FaseehWorldStageState extends State {
   void initState() {
     super.initState();
     _player.onPlayerComplete.listen((_) {
+      _storySegmentTimer?.cancel();
       if (mounted) {
         setState(() {
           _isPlaying = false;
@@ -249,14 +297,47 @@ class _FaseehWorldStageState extends State {
 
   @override
   void dispose() {
+    _storySegmentTimer?.cancel();
     _videoController?.dispose();
     _yt.close();
     _player.dispose();
     super.dispose();
   }
 
-  // استخراج البث المباشر وتشغيله في مشغل الفيديو الأصلي للتطبيق بدون أي صفحة يوتيوب
-  Future _playDirectNativeVideo(String videoId) async {
+  // تشغيل مقطع الصوت الخاص بالصفحة الحالية فقط في القصة
+  Future<void> _playStoryPageAudio(StoryBookItem book, int pageIndex) async {
+    _storySegmentTimer?.cancel();
+    final StoryPageData page = book.pages[pageIndex];
+    setState(() {
+      _currentTrack = book.audioFile;
+      _owlBubble = 'تقرأ وتستمع الآن إلى صفحة ${pageIndex + 1} من: ${book.title}';
+      _isPlaying = true;
+      _owlBounce = true;
+    });
+    await _player.stop();
+    await _player.play(AssetSource('audio/${book.audioFile}'));
+    if (page.startSec > 0) {
+      await _player.seek(Duration(seconds: page.startSec));
+    }
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        setState(() => _owlBounce = false);
+      }
+    });
+
+    // إيقاف الصوت تلقائياً عند انتهاء فقرة هذه الصفحة حتى ينتقل الطفل للصفحة التالية
+    _storySegmentTimer = Timer(Duration(seconds: page.durationSec), () async {
+      await _player.pause();
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _owlBubble = 'انْتَهَتْ هَذِهِ الصَّفْحَةُ! اضْغَطْ عَلَى «الصَّفْحَةُ التَّالِيَةُ» لِنُكْمِلَ القِصَّةَ!';
+        });
+      }
+    });
+  }
+
+  Future<void> _playDirectNativeVideo(String videoId) async {
     setState(() {
       _isVideoLoading = true;
       _videoError = null;
@@ -286,7 +367,8 @@ class _FaseehWorldStageState extends State {
     }
   }
 
-  Future _playMedia(String fileName, String bubbleText, int bonusStars) async {
+  Future<void> _playMedia(String fileName, String bubbleText, int bonusStars) async {
+    _storySegmentTimer?.cancel();
     setState(() {
       _currentTrack = fileName;
       _owlBubble = bubbleText;
@@ -305,12 +387,15 @@ class _FaseehWorldStageState extends State {
     });
   }
 
-  Future _toggleStopPlay() async {
+  Future<void> _toggleStopPlay() async {
+    _storySegmentTimer?.cancel();
     if (_isPlaying) {
       await _player.stop();
       setState(() {
         _isPlaying = false;
       });
+    } else if (_screenIndex == 2 && _selectedBookIndex != -1) {
+      await _playStoryPageAudio(_books[_selectedBookIndex], _currentPageIndex);
     } else {
       await _playMedia(_currentTrack, _owlBubble, 0);
     }
@@ -322,9 +407,9 @@ class _FaseehWorldStageState extends State {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(strokeWidth: 5),
+            CircularProgressIndicator(strokeWidth: 5, color: Colors.white),
             SizedBox(height: 12),
-            Text('جَارِي تَجْهِيزُ الفِيدْيُو الآمِنِ...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('جَارِي تَجْهِيزُ الفِيدْيُو الآمِنِ...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
           ],
         ),
       );
@@ -334,7 +419,7 @@ class _FaseehWorldStageState extends State {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_videoError ?? 'اضْغَطْ لِتَشْغِيلِ الفِيدْيُو', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(_videoError ?? 'اضْغَطْ لِتَشْغِيلِ الفِيدْيُو', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
             const SizedBox(height: 10),
             FilledButton.icon(
               onPressed: onRetry,
@@ -354,6 +439,37 @@ class _FaseehWorldStageState extends State {
           child: AspectRatio(
             aspectRatio: ctrl.value.aspectRatio,
             child: VideoPlayer(ctrl),
+          ),
+        ),
+        // زر علوي للتبديل بين الشاشة الكبيرة مع القائمة وبين ملء الشاشة
+        Positioned(
+          top: 8,
+          left: 8,
+          child: Material(
+            color: Colors.black.withAlpha(170),
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                setState(() {
+                  _isVideoExpanded = !_isVideoExpanded;
+                });
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(_isVideoExpanded ? Icons.view_sidebar_rounded : Icons.fullscreen_rounded, color: Colors.white, size: 22),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isVideoExpanded ? 'إظهار قائمة السور' : 'تكبير الشاشة ⛶',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
         Container(
@@ -430,8 +546,12 @@ class _FaseehWorldStageState extends State {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
                 onPressed: () async {
+                  _storySegmentTimer?.cancel();
+                  await _player.stop();
                   await _videoController?.pause();
                   setState(() {
+                    _isPlaying = false;
+                    _isVideoExpanded = false;
                     if (_screenIndex == 2 && _selectedBookIndex != -1) {
                       _selectedBookIndex = -1;
                     } else {
@@ -444,7 +564,7 @@ class _FaseehWorldStageState extends State {
               ),
             ),
           GestureDetector(
-            onTap: () => _playMedia(_currentTrack, _owlBubble, 0),
+            onTap: _toggleStopPlay,
             child: AnimatedScale(
               scale: _owlBounce ? 1.15 : 1.0,
               duration: const Duration(milliseconds: 300),
@@ -512,11 +632,41 @@ class _FaseehWorldStageState extends State {
     if (_screenIndex == 1) return _buildSongsStage();
     if (_screenIndex == 2) {
       if (_selectedBookIndex == -1) return _buildBookshelfStage();
-      return _buildOpenBookViewer(_books[_selectedBookIndex] as StoryBookItem);
+      return _buildOpenBookViewer(_books[_selectedBookIndex]);
     }
     if (_screenIndex == 3) return _buildGamesStage();
-    if (_screenIndex == 4) return _buildTafsirStage();
-    if (_screenIndex == 5) return _buildRecitationStage();
+    if (_screenIndex == 4) {
+      return _buildVideoWithSidebarStage(
+        sectionTitle: '📖 Quran Tafsir in English',
+        headerColor: const Color(0xFF059669),
+        items: _tafsirVideos,
+        selectedIndex: _selectedTafsirIndex,
+        onSelect: (int idx) {
+          setState(() {
+            _selectedTafsirIndex = idx;
+            _stars += 3;
+            _owlBubble = 'تُشَاهِدُ الآنَ تَفْسِيرَ: ${_tafsirVideos[idx].arabicTitle} (${_tafsirVideos[idx].subtitle})';
+          });
+          _playDirectNativeVideo(_tafsirVideos[idx].videoId);
+        },
+      );
+    }
+    if (_screenIndex == 5) {
+      return _buildVideoWithSidebarStage(
+        sectionTitle: '🎧 سور تلاوة القرآن الكريم',
+        headerColor: const Color(0xFF0284C7),
+        items: _recitationVideos,
+        selectedIndex: _selectedRecitationIndex,
+        onSelect: (int idx) {
+          setState(() {
+            _selectedRecitationIndex = idx;
+            _stars += 3;
+            _owlBubble = 'تَسْتَمِعُ الآنَ إِلَى تِلَاوَةِ: ${_recitationVideos[idx].arabicTitle}';
+          });
+          _playDirectNativeVideo(_recitationVideos[idx].videoId);
+        },
+      );
+    }
     return _buildMainLobby();
   }
 
@@ -572,9 +722,10 @@ class _FaseehWorldStageState extends State {
               badgeBg: const Color(0xFFECFDF5),
               onTap: () async {
                 await _player.stop();
-                final TafsirVideoItem first = _tafsirVideos[_selectedTafsirIndex] as TafsirVideoItem;
+                final VideoSurahItem first = _tafsirVideos[_selectedTafsirIndex];
                 setState(() {
                   _isPlaying = false;
+                  _isVideoExpanded = false;
                   _screenIndex = 4;
                   _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ بِاللُّغَةِ الإِنْجِلِيزِيَّةِ! اخْتَرِ السُّورَةَ لِلْمُشَاهَدَةِ!';
                   _stars += 5;
@@ -591,13 +742,15 @@ class _FaseehWorldStageState extends State {
               badgeBg: const Color(0xFFF0F9FF),
               onTap: () async {
                 await _player.stop();
+                final VideoSurahItem first = _recitationVideos[_selectedRecitationIndex];
                 setState(() {
                   _isPlaying = false;
+                  _isVideoExpanded = false;
                   _screenIndex = 5;
-                  _owlBubble = 'اسْتَمِعْ وَرَدِّدْ تِلَاوَةَ القُرْآنِ الكَرِيمِ بِصَوْتٍ عَذْبٍ!';
+                  _owlBubble = 'اسْتَمِعْ وَرَدِّدْ تِلَاوَةَ القُرْآنِ الكَرِيمِ! اخْتَرِ السُّورَةَ مِنَ القَائِمَةِ!';
                   _stars += 5;
                 });
-                _playDirectNativeVideo(_recitationVideoIds[_recitationIndex].toString());
+                _playDirectNativeVideo(first.videoId);
               },
             ),
           ],
@@ -652,106 +805,27 @@ class _FaseehWorldStageState extends State {
     );
   }
 
-  Widget _buildRecitationStage() {
-    final bool isFirst = _recitationIndex == 0;
-    final bool isLast = _recitationIndex == _recitationVideoIds.length - 1;
-    final String currentVid = _recitationVideoIds[_recitationIndex].toString();
+  // واجهة موحدة تجمع بين الفيديو الكبير وقائمة السور لكل من التفسير والتلاوة
+  Widget _buildVideoWithSidebarStage({
+    required String sectionTitle,
+    required Color headerColor,
+    required List<VideoSurahItem> items,
+    required int selectedIndex,
+    required ValueChanged<int> onSelect,
+  }) {
+    final VideoSurahItem activeItem = items[selectedIndex];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withAlpha(245),
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFF0284C7), width: 4.5),
-          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 14)],
-        ),
-        child: Column(
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  color: Colors.black,
-                  child: _buildNativeVideoPlayerBox(
-                    borderColor: const Color(0xFF0284C7),
-                    onRetry: () => _playDirectNativeVideo(currentVid),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isFirst ? Colors.grey.shade300 : const Color(0xFF0284C7),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  onPressed: isFirst
-                      ? null
-                      : () {
-                          setState(() => _recitationIndex -= 1);
-                          _playDirectNativeVideo(_recitationVideoIds[_recitationIndex].toString());
-                        },
-                  icon: const Icon(Icons.skip_previous_rounded, size: 26),
-                  label: const Text('التلاوة السابقة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0F2FE),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF0284C7), width: 2),
-                  ),
-                  child: Text(
-                    '🔒 مشغل مباشر آمن (${_recitationIndex + 1} / ${_recitationVideoIds.length})',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0369A1)),
-                  ),
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isLast ? Colors.grey.shade300 : const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  onPressed: isLast
-                      ? null
-                      : () {
-                          setState(() {
-                            _recitationIndex += 1;
-                            _stars += 3;
-                          });
-                          _playDirectNativeVideo(_recitationVideoIds[_recitationIndex].toString());
-                        },
-                  icon: const Icon(Icons.skip_next_rounded, size: 26),
-                  label: const Text('التلاوة التالية (+3 ⭐)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTafsirStage() {
-    final TafsirVideoItem activeItem = _tafsirVideos[_selectedTafsirIndex] as TafsirVideoItem;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
       child: Row(
         children: [
+          // شاشة الفيديو الكبيرة (72% من العرض، أو 100% عند الضغط على زر التكبير)
           Expanded(
-            flex: 6,
+            flex: 72,
             child: Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: Colors.white.withAlpha(245),
-                borderRadius: BorderRadius.circular(26),
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: activeItem.color, width: 4),
                 boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 12)],
               ),
@@ -759,7 +833,7 @@ class _FaseehWorldStageState extends State {
                 children: [
                   Expanded(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(16),
                       child: Container(
                         color: Colors.black,
                         child: _buildNativeVideoPlayerBox(
@@ -769,81 +843,88 @@ class _FaseehWorldStageState extends State {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(activeItem.arabicTitle, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: activeItem.color)),
-                      Text(activeItem.englishTitle, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                      Text(activeItem.arabicTitle, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: activeItem.color)),
+                      Text(activeItem.subtitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
                     ],
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 4,
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withAlpha(235),
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: const Color(0xFF059669), width: 3.5),
-              ),
-              child: Column(
-                children: [
-                  const Text('📖 Quran Tafsir in English', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF065F46))),
-                  const Divider(height: 12),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _tafsirVideos.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final TafsirVideoItem surah = _tafsirVideos[index] as TafsirVideoItem;
-                        final bool isSelected = index == _selectedTafsirIndex;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Material(
-                            color: isSelected ? surah.color : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(16),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: () {
-                                setState(() {
-                                  _selectedTafsirIndex = index;
-                                  _stars += 3;
-                                  _owlBubble = 'تُشَاهِدُ الآنَ تَفْسِيرَ: ${surah.arabicTitle} (${surah.englishTitle})';
-                                });
-                                _playDirectNativeVideo(surah.videoId);
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                child: Row(
-                                  children: [
-                                    Icon(isSelected ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded, color: isSelected ? Colors.white : surah.color, size: 28),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(surah.arabicTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isSelected ? Colors.white : const Color(0xFF0F172A))),
-                                          Text(surah.englishTitle, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isSelected ? const Color(0xFFFEF08A) : const Color(0xFF475569))),
-                                        ],
+          if (!_isVideoExpanded) const SizedBox(width: 10),
+          // قائمة السور الجانبية المدمجة (28% من العرض)
+          if (!_isVideoExpanded)
+            Expanded(
+              flex: 28,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(238),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: headerColor, width: 3.5),
+                ),
+                child: Column(
+                  children: [
+                    Text(sectionTitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: headerColor)),
+                    const Divider(height: 10),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: items.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final VideoSurahItem surah = items[index];
+                          final bool isSelected = index == selectedIndex;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 5),
+                            child: Material(
+                              color: isSelected ? surah.color : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(14),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () => onSelect(index),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isSelected ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded,
+                                        color: isSelected ? Colors.white : surah.color,
+                                        size: 24,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              surah.arabicTitle,
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelected ? Colors.white : const Color(0xFF0F172A)),
+                                            ),
+                                            Text(
+                                              surah.subtitle,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isSelected ? const Color(0xFFFEF08A) : const Color(0xFF475569)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -854,7 +935,7 @@ class _FaseehWorldStageState extends State {
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 18),
       child: Row(
         children: List.generate(_books.length, (int i) {
-          final StoryBookItem book = _books[i] as StoryBookItem;
+          final StoryBookItem book = _books[i];
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -864,7 +945,7 @@ class _FaseehWorldStageState extends State {
                     _selectedBookIndex = i;
                     _currentPageIndex = 0;
                   });
-                  _playMedia(book.audioFile, 'تقرأ وتستمع الآن إلى: ${book.title}', 5);
+                  _playStoryPageAudio(book, 0);
                 },
                 child: Container(
                   decoration: BoxDecoration(
@@ -913,7 +994,7 @@ class _FaseehWorldStageState extends State {
                                       _selectedBookIndex = i;
                                       _currentPageIndex = 0;
                                     });
-                                    _playMedia(book.audioFile, 'تقرأ وتستمع الآن إلى: ${book.title}', 5);
+                                    _playStoryPageAudio(book, 0);
                                   },
                                   icon: const Icon(Icons.auto_stories_rounded, size: 26),
                                   label: const Text('افتح الكتاب واقرأ القصة', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
@@ -935,7 +1016,7 @@ class _FaseehWorldStageState extends State {
   }
 
   Widget _buildOpenBookViewer(StoryBookItem book) {
-    final StoryPageData page = book.pages[_currentPageIndex] as StoryPageData;
+    final StoryPageData page = book.pages[_currentPageIndex];
     final bool isFirstPage = _currentPageIndex == 0;
     final bool isLastPage = _currentPageIndex == book.pages.length - 1;
 
@@ -1019,22 +1100,31 @@ class _FaseehWorldStageState extends State {
                 children: [
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(backgroundColor: isFirstPage ? Colors.grey.shade300 : const Color(0xFF0284C7), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                    onPressed: isFirstPage ? null : () => setState(() => _currentPageIndex -= 1),
+                    onPressed: isFirstPage
+                        ? null
+                        : () {
+                            final int prevPage = _currentPageIndex - 1;
+                            setState(() => _currentPageIndex = prevPage);
+                            _playStoryPageAudio(book, prevPage);
+                          },
                     icon: const Icon(Icons.arrow_back_rounded, size: 28),
                     label: const Text('الصفحة السابقة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                   FilledButton.tonalIcon(
                     style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                    onPressed: () => _playMedia(book.audioFile, 'تستمع الآن إلى: ${book.title}', 0),
+                    onPressed: () => _playStoryPageAudio(book, _currentPageIndex),
                     icon: Icon(_isPlaying ? Icons.graphic_eq_rounded : Icons.volume_up_rounded, size: 26),
-                    label: Text(_isPlaying ? 'الصوت يعمل...' : 'استمع للقصة 🔊', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    label: Text(_isPlaying ? 'يقرأ هذه الصفحة...' : 'إعادة قراءة الصفحة 🔊', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                   ),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(backgroundColor: isLastPage ? const Color(0xFF10B981) : const Color(0xFFF59E0B), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
                     onPressed: () {
                       if (!isLastPage) {
-                        setState(() => _currentPageIndex += 1);
+                        final int nextPage = _currentPageIndex + 1;
+                        setState(() => _currentPageIndex = nextPage);
+                        _playStoryPageAudio(book, nextPage);
                       } else {
+                        _storySegmentTimer?.cancel();
                         _playMedia('bravo.mp3', 'أَحْسَنْتَ! أَنْهَيْتَ قِرَاءَةَ القِصَّةِ بِبَرَاعَةٍ! +10 نُجُوم!', 10);
                         setState(() => _selectedBookIndex = -1);
                       }
@@ -1056,7 +1146,7 @@ class _FaseehWorldStageState extends State {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
       child: Row(
         children: List.generate(_songs.length, (int i) {
-          final SongItem s = _songs[i] as SongItem;
+          final SongItem s = _songs[i];
           final bool active = _currentTrack == s.audioFile && _isPlaying;
           return Expanded(
             child: Padding(
@@ -1099,7 +1189,7 @@ class _FaseehWorldStageState extends State {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
       child: Row(
         children: List.generate(_quizzes.length, (int i) {
-          final QuizItem q = _quizzes[i] as QuizItem;
+          final QuizItem q = _quizzes[i];
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -1118,7 +1208,7 @@ class _FaseehWorldStageState extends State {
                     Text(q.question, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Color(0xFF0F172A))),
                     Column(
                       children: List.generate(q.options.length, (int optIdx) {
-                        final String label = q.options[optIdx].toString();
+                        final String label = q.options[optIdx];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: SizedBox(
