@@ -2,7 +2,7 @@ name: Build Faseeh World Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
@@ -22,89 +22,22 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Create Flutter project structure
+      - name: Prepare Flutter project structure
         run: |
-          flutter create --org com.faseeh.world --project-name faseeh_world .
-          rm -rf test
+          mkdir -p lib
+          cp main.dart lib/main.dart
 
-      - name: Add dependencies
-        run: |
-          flutter pub add audioplayers
-          flutter pub add youtube_explode_dart
-          flutter pub add video_player
-
-      - name: Enable Internet permission in AndroidManifest.xml
-        run: |
-          sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
-
-      - name: Generate natural cheerful child-like Arabic voice MP3s (Zero Music) & assets
-        run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg python3-pip
-          pip install edge-tts
-          mkdir -p assets/images assets/audio
-          if [ -d "images" ]; then cp -r images/* assets/images/ 2>/dev/null || true; fi
-          cp *.png assets/images/ 2>/dev/null || true
-          cp *.jpg assets/images/ 2>/dev/null || true
-          python3 -c '
-          import asyncio, subprocess, edge_tts
-
-          VOICE = "ar-EG-SalmaNeural"
-
-          tracks = {
-              "welcome.mp3": "أَهْلاً وَسَهْلاً بِكُمْ يَا أَصْدِقَائِي فِي عَالَمِ فَصِيحٍ! اضْغَطُوا عَلَى الزِّرِّ الأَخْضَرِ لِنَبْدَأَ المَرَحَ!",
-              "applause.mp3": "بْرَافُو! أَحْسَنْتُمْ يَا أَبْطَالُ! تَصْفِيقٌ حَارٌّ لَكُمْ!",
-              "bravo.mp3": "رَائِعٌ جِدّاً يَا بَطَلَ الفُصْحَى! إِجَابَةٌ صَحِيحَةٌ وَمُمْتَازَةٌ!",
-              "try_again.mp3": "لَا بَأْسَ يَا صَدِيقِي! حَاوِلْ مَرَّةً أُخْرَى، أَنْتَ ذَكِيٌّ وَسَتَنْجَحُ!",
-              "song_alphabet.mp3": "أَلِفٌ أَرْنَبٌ، يَجْرِي يَلْعَبُ، يَأْكُلُ جَزَراً كَيْ لَا يَتْعَبَ! بَاءٌ بَطَّةٌ، نَطَّتْ نَطَّةً، وَقَعَتْ ضَحِكَتْ مِنْهَا القِطَّةُ! تَاءٌ تَاجٌ، فَوْقَ الرَّأْسِ، فِيهِ الذَّهَبُ وَفِيهِ المَاسُ!",
-              "song_morning.mp3": "أَشْرَقَتِ الشَّمْسُ الذَّهَبِيَّةُ، وَتَغَنَّتْ طَيْرُ الحُرِّيَّةِ! هَيَّا نَتَعَلَّمْ يَا أَطْفَالُ، لُغَتِي الفُصْحَى أَجْمَلُ حَالٍ! نَقْرَأُ، نَكْتُبُ، نَرْسُمُ فِيهَا، وَنُحِبُّ العِلْمَ وَنَحْمِيهَا!",
-              "song_numbers.mp3": "وَاحِدٌ اثْنَانِ ثَلَاثَةٌ، نَتَعَلَّمُ بِذَكَاءٍ وَحَمَاسَةٍ! أَرْبَعَةٌ خَمْسَةٌ سِتَّةٌ، نَقْرَأُ فِي البُسْتَانِ القِصَّةَ! سَبْعَةٌ ثَمَانِيَةٌ تِسْعَةٌ عَشَرَةٌ، أَرْقَامِي الفُصْحَى مُبْتَهِجَةٌ!",
-              "story_rabbit_p1.mp3": "فِي صَبَاحٍ مُشْرِقٍ جَمِيلٍ، خَرَجَ الأَرْنَبُ الصَّغِيرُ فَصِيحٌ يَبْحَثُ عَنْ طَعَامٍ لَذِيذٍ فِي الحَقْلِ الأَخْضَرِ الوَاسِعِ.",
-              "story_rabbit_p2.mp3": "فَجْأَةً، وَجَدَ فَصِيحٌ جَزَرَةً كَبِيرَةً تَلْمَعُ تَحْتَ أَشِعَّةِ الشَّمْسِ، لَكِنَّهَا كَانَتْ عَالِقَةً بِقُوَّةٍ فِي التُّرْبَةِ!",
-              "story_rabbit_p3.mp3": "نَادَى فَصِيحٌ أَصْدِقَاءَهُ السِّنْجَابَ وَالسُّلَحْفَاةَ، وَقَالَ بِلُطْفٍ وَأَدَبٍ: هَلْ تُسَاعِدُونَنِي يَا أَصْدِقَائِي؟",
-              "story_rabbit_p4.mp3": "تَعَاوَنَ الجَمِيعُ بِهِمَّةٍ وَنَشَاطٍ حَتَّى أَخْرَجُوا الجَزَرَةَ الذَّهَبِيَّةَ، وَتَقَاسَمُوهَا بِسَعَادَةٍ وَمَحَبَّةٍ كَبِيرَةٍ! الحِكْمَةُ: بِالتَّعَاوُنِ وَالكَلِمَةِ الطَّيِّبَةِ نُنْجِزُ أَصْعَبَ المَهَامِّ!",
-              "story_owl_p1.mp3": "فِي الغَابَةِ المَضِيئَةِ، كَانَ البُلْبُلُ الصَّغِيرُ يَخْجَلُ مِنَ الغِنَاءِ أَمَامَ طُيُورِ الغَابَةِ خَوْفاً مِنَ الخَطَأِ.",
-              "story_owl_p2.mp3": "اقْتَرَبَ مِنْهُ البُومُ الحَكِيمُ فَصِيحٌ وَقَالَ لَهُ بِابْتِسَامَةٍ دَافِئَةٍ: صَوْتُكَ جَمِيلٌ يَا بُنَيَّ، وَالتَّجْرِبَةُ هِيَ طَرِيقُ النَّجَاحِ!",
-              "story_owl_p3.mp3": "تَشَجَّعَ البُلْبُلُ وَانْطَلَقَ يُغَرِّدُ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ، فَصَفَّقَتْ لَهُ الطُّيُورُ بِإِعْجَابٍ وَفَرَحٍ شَدِيدٍ! الحِكْمَةُ: الثِّقَةُ بِالنَّفْسِ وَالمُحَاوَلَةُ المُسْتَمِرَّةُ تَصْنَعُ الإِبْدَاعَ!",
-              "quiz_1.mp3": "مَا مَعْنَى كَلِمَةِ غَدِيرٌ؟",
-              "quiz_2.mp3": "مَا صَوْتُ أَوْرَاقِ الشَّجَرِ؟",
-              "quiz_3.mp3": "أَيُّ جُمْلَةٍ بِالعَرَبِيَّةِ الفُصْحَى؟"
-          }
-
-          async def build_all():
-              for fname, text in tracks.items():
-                  raw = f"/tmp/raw_{fname}"
-                  out = f"assets/audio/{fname}"
-                  communicate = edge_tts.Communicate(text, VOICE, rate="-5%", pitch="+18Hz")
-                  await communicate.save(raw)
-                  subprocess.run(["ffmpeg", "-y", "-i", raw, "-ar", "44100", "-ac", "1", "-b:a", "128k", out], check=True)
-
-          asyncio.run(build_all())
-          '
-          python3 -c '
-          with open("pubspec.yaml", "r") as f:
-              content = f.read()
-          assets_block = "\n  assets:\n    - assets/images/\n    - assets/audio/\n"
-          if "uses-material-design: true" in content:
-              content = content.replace("uses-material-design: true", "uses-material-design: true" + assets_block)
-          with open("pubspec.yaml", "w") as f:
-              f.write(content)
-          '
-
-      - name: Place main.dart into lib/
-        run: |
-          if [ -f "main.dart" ]; then
-            cp main.dart lib/main.dart
-          fi
+      - name: Install dependencies
+        run: flutter pub get
 
       - name: Build Android APK
-        run: |
-          flutter pub get
-          flutter build apk --debug
+        run: flutter build apk --debug
 
       - name: Upload Faseeh World APK
         uses: actions/upload-artifact@v4
         with:
-          name: Faseeh-World-Android-APK
+          name: faseeh-world-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
