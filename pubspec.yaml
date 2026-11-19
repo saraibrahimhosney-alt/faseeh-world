@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   audioplayers: ^6.1.0
+  video_player: ^2.9.2
+  youtube_explode_dart: ^2.3.10
 
 dev_dependencies:
   flutter_test:
@@ -19,15 +21,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - forest_bg.png
-    - owl_mascot.png
-    - card_songs.png
-    - card_stories.png
-    - song_alphabet.mp3
-    - song_morning.mp3
-    - song_numbers.mp3
-    - story_owl.mp3
-    - story_rabbit.mp3
-    - welcome.mp3
-    - bravo.mp3
-    - try_again.mp3
+    - assets/images/
+    - assets/audio/
