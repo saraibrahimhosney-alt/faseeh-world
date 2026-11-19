@@ -24,11 +24,13 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Create Android platform files
+      - name: Prepare Flutter structure and copy assets
         run: |
           flutter create . --platforms=android --project-name faseeh_world
-          mkdir -p lib
+          mkdir -p lib assets/images assets/audio
           cp main.dart lib/main.dart
+          cp *.png assets/images/ || true
+          cp *.mp3 assets/audio/ || true
 
       - name: Install dependencies
         run: flutter pub get
