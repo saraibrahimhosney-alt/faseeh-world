@@ -27,7 +27,7 @@ jobs:
 
       - name: Create Android platform files
         run: |
-          flutter create . --platforms=android
+          flutter create . --platforms=android --project-name faseeh_world
           mkdir -p lib
           cp main.dart lib/main.dart
 
