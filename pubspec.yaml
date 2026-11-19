@@ -1,5 +1,5 @@
 name: faseeh_world
-description: Faseeh World Arabic Educational App for Kids
+description: تطبيق عالم فصيح التعليمي التفاعلي للأطفال
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,6 +9,25 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  audioplayers: ^6.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
+  assets:
+    - forest_bg.png
+    - owl_mascot.png
+    - card_songs.png
+    - card_stories.png
+    - song_alphabet.mp3
+    - song_morning.mp3
+    - song_numbers.mp3
+    - story_owl.mp3
+    - story_rabbit.mp3
+    - welcome.mp3
+    - bravo.mp3
+    - try_again.mp3
