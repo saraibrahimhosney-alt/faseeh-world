@@ -1,25 +1,43 @@
-name: faseeh_world
-description: تطبيق عالم فصيح التعليمي التفاعلي للأطفال
-publish_to: 'none'
-version: 1.0.0+1
+name: Build Faseeh World Android APK
 
-environment:
-  sdk: '>=3.0.0 <4.0.0'
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
 
-dependencies:
-  flutter:
-    sdk: flutter
-  audioplayers: ^6.1.0
-  video_player: ^2.9.2
-  youtube_explode_dart: ^2.3.10
+jobs:
+  build-android-apk:
+    name: Build Faseeh APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^3.0.0
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-flutter:
-  uses-material-design: true
-  assets:
-    - assets/images/
-    - assets/audio/
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Create Android platform files if missing
+        run: |
+          if [ ! -d "android" ]; then
+            flutter create --platforms=android --project-name=faseeh_world .
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Upload Faseeh World APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Faseeh-World-Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
