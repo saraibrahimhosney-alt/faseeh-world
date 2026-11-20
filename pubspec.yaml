@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  audioplayers: ^6.1.0
+  video_player: ^2.9.2
+  youtube_explode_dart: ^2.3.10
 
 dev_dependencies:
   flutter_test:
@@ -17,3 +20,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/audio/
