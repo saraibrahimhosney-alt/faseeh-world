@@ -2,7 +2,7 @@ name: Build Faseeh World Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
@@ -24,87 +24,27 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Create Flutter project structure
+      - name: Prepare structure and copy your real audio & images
         run: |
-          flutter create --org com.faseeh.world --project-name faseeh_world .
-          rm -rf test
-
-      - name: Add dependencies
-        run: |
-          flutter pub add audioplayers
-          flutter pub add flutter_tts
-          flutter pub add youtube_explode_dart
-          flutter pub add video_player
+          flutter create . --platforms=android --project-name faseeh_world
+          mkdir -p lib assets/images assets/audio
+          cp main.dart lib/main.dart
+          cp *.png assets/images/ || true
+          cp *.mp3 assets/audio/ || true
+          ls -la assets/audio/
 
       - name: Enable Internet permission in AndroidManifest.xml
         run: |
           sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
-      - name: Generate pure applause & joy sound effects (No Music) and configure assets
-        run: |
-          mkdir -p assets/images assets/audio
-          if [ -d "images" ]; then cp -r images/* assets/images/ 2>/dev/null || true; fi
-          cp *.png assets/images/ 2>/dev/null || true
-          cp *.jpg assets/images/ 2>/dev/null || true
-          python3 -c '
-          import wave, math, random, struct
-
-          def make_applause(filename, duration=2.2):
-              sr = 22050
-              n = int(sr * duration)
-              with wave.open(filename, "w") as w:
-                  w.setnchannels(1)
-                  w.setsampwidth(2)
-                  w.setframerate(sr)
-                  for i in range(n):
-                      t = i / sr
-                      env = math.sin(min(1.0, t / 0.2) * math.pi / 2) * math.exp(-0.9 * max(0.0, t - 0.8))
-                      clap_burst = (0.6 + 0.4 * math.sin(2 * math.pi * 9.5 * t) * math.sin(2 * math.pi * 6.3 * t))
-                      noise = random.uniform(-1.0, 1.0)
-                      val = int(14000 * env * clap_burst * noise)
-                      w.writeframes(struct.pack("<h", max(-32767, min(32767, val))))
-
-          def make_cheer_pop(filename):
-              sr = 22050
-              notes = [523.25, 659.25, 783.99, 1046.50]
-              with wave.open(filename, "w") as w:
-                  w.setnchannels(1)
-                  w.setsampwidth(2)
-                  w.setframerate(sr)
-                  for freq in notes:
-                      dur = 0.09
-                      for i in range(int(sr * dur)):
-                          t = i / sr
-                          env = math.exp(-8.0 * t)
-                          val = int(12000 * env * math.sin(2 * math.pi * freq * t))
-                          w.writeframes(struct.pack("<h", max(-32767, min(32767, val))))
-
-          make_applause("assets/audio/applause.wav")
-          make_cheer_pop("assets/audio/cheer_pop.wav")
-          '
-          python3 -c '
-          with open("pubspec.yaml", "r") as f:
-              content = f.read()
-          assets_block = "\n  assets:\n    - assets/images/\n    - assets/audio/\n"
-          if "uses-material-design: true" in content:
-              content = content.replace("uses-material-design: true", "uses-material-design: true" + assets_block)
-          with open("pubspec.yaml", "w") as f:
-              f.write(content)
-          '
-
-      - name: Place main.dart into lib/
-        run: |
-          if [ -f "main.dart" ]; then
-            cp main.dart lib/main.dart
-          fi
+      - name: Install dependencies
+        run: flutter pub get
 
       - name: Build Android APK
-        run: |
-          flutter pub get
-          flutter build apk --debug
+        run: flutter build apk --debug
 
       - name: Upload Faseeh World APK
         uses: actions/upload-artifact@v4
         with:
-          name: Faseeh-World-Android-APK
+          name: faseeh-world-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
