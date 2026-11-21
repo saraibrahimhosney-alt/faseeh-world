@@ -32,12 +32,14 @@ class SongItem {
 }
 
 class StoryPageData {
-  final String text, emoji, audioFile;
+  final String pageTitle, text, mainEmoji, sideEmoji1, sideEmoji2;
   final Color bgTint;
   const StoryPageData({
+    required this.pageTitle,
     required this.text,
-    required this.emoji,
-    required this.audioFile,
+    required this.mainEmoji,
+    required this.sideEmoji1,
+    required this.sideEmoji2,
     required this.bgTint,
   });
 }
@@ -336,10 +338,12 @@ class FaseehWorldStage extends StatefulWidget {
   State<FaseehWorldStage> createState() => _FaseehWorldStageState();
 }
 
-class _FaseehWorldStageState extends State<FaseehWorldStage> {
+class _FaseehWorldStageState extends State<FaseehWorldStage>
+    with SingleTickerProviderStateMixin {
   final AudioPlayer _player = AudioPlayer();
   final YoutubeExplode _yt = YoutubeExplode();
   VideoPlayerController? _videoController;
+  late final AnimationController _storyAnimCtrl;
 
   bool _isVideoLoading = false;
   String? _videoError;
@@ -355,6 +359,7 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
   int _selectedSongIndex = -1;
   int _selectedBookIndex = -1;
   int _currentPageIndex = 0;
+  double _storyFontSize = 23.0;
   int _selectedQuizIndex = -1;
   int _selectedTafsirIndex = 0;
   int _selectedRecitationIndex = 0;
@@ -430,14 +435,74 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
     StoryBookItem(
       title: 'الأَرْنَبُ وَالجَزَرَةُ الذَّهَبِيَّةُ',
       englishTitle: 'The Rabbit & Golden Carrot',
-      moral: 'الحِكْمَةُ: بِالتَّعَاوُنِ وَالكَلِمَةِ الطَّيِّبَةِ نُنْجِزُ أَصْعَبَ المَهَامِّ!',
+      moral: 'الحِكْمَةُ: بِالتَّعَاوُنِ وَالكَلِمَةِ الطَّيِّبَةِ نُنْجِزُ أَصْعَبَ المَهَامِّ، وَالفَرَحُ يَكْبُرُ عِنْدَمَا نَتَقَاسَمُهُ مَعَ الأَصْدِقَاءِ!',
       imagePath: 'assets/images/card_stories.png',
       color: Color(0xFF059669),
       pages: [
-        StoryPageData(text: 'فِي صَبَاحٍ مُشْرِقٍ جَمِيلٍ، خَرَجَ الأَرْنَبُ الصَّغِيرُ «فَصِيحٌ» يَبْحَثُ عَنْ طَعَامٍ لَذِيذٍ فِي الحَقْلِ الأَخْضَرِ الوَاسِعِ.', emoji: '🐰🌞🌿', audioFile: 'story_rabbit.mp3', bgTint: Color(0xFFECFDF5)),
-        StoryPageData(text: 'فَجْأَةً، وَجَدَ فَصِيحٌ جَزَرَةً كَبِيرَةً تَلْمَعُ تَحْتَ أَشِعَّةِ الشَّمْسِ، لَكِنَّهَا كَانَتْ عَالِقَةً بِقُوَّةٍ فِي التُّرْبَةِ!', emoji: '🥕✨😲', audioFile: 'story_rabbit.mp3', bgTint: Color(0xFFFFFBEB)),
-        StoryPageData(text: 'نَادَى فَصِيحٌ أَصْدِقَاءَهُ السِّنْجَابَ وَالسُّلَحْفَاةَ، وَقَالَ بِلُطْفٍ وَأَدَبٍ: «هَلْ تُسَاعِدُونَنِي يَا أَصْدِقَائِي؟».', emoji: '🐿️🐢💬', audioFile: 'story_rabbit.mp3', bgTint: Color(0xFFF0F9FF)),
-        StoryPageData(text: 'تَعَاوَنَ الجَمِيعُ بِهِمَّةٍ وَنَشَاطٍ حَتَّى أَخْرَجُوا الجَزَرَةَ الذَّهَبِيَّةَ، وَتَقَاسَمُوهَا بِسَعَادَةٍ وَمَحَبَّةٍ كَبِيرَةٍ!', emoji: '🎉🥕❤️', audioFile: 'story_rabbit.mp3', bgTint: Color(0xFFFDF2F8)),
+        StoryPageData(
+          pageTitle: 'الصَّبَاحُ المُشْرِقُ فِي الغَابَةِ',
+          text: 'فِي صَبَاحٍ رَبِيعِيٍّ مُشْرِقٍ، تَسَلَّلَتْ أَشِعَّةُ الشَّمْسِ الذَّهَبِيَّةُ بَيْنَ أَغْصَانِ الأَشْجَارِ العَالِيَةِ، وَغَرَّدَتِ العَصَافِيرُ بِأَعْذَبِ الأَلْحَانِ.\nاسْتَيْقَظَ الأَرْنَبُ الصَّغِيرُ «فَصِيحٌ» نَشِيطاً، وَنَظَّفَ وَجْهَهُ الصَّغِيرَ، ثُمَّ قَفَزَ خَارِجَ جُحْرِهِ الدَّافِئِ لِيَبْحَثَ عَنْ فُطُورٍ لَذِيذٍ يَمْنَحُهُ الطَّاقَةَ وَالقُوَّةَ.',
+          mainEmoji: '🐰',
+          sideEmoji1: '🌞',
+          sideEmoji2: '🌿',
+          bgTint: Color(0xFFECFDF5),
+        ),
+        StoryPageData(
+          pageTitle: 'المُفَاجَأَةُ الكَبِيرَةُ فِي الحَقْلِ',
+          text: 'سَارَ «فَصِيحٌ» بَيْنَ الأَزْهَارِ المُلَوَّنَةِ وَالفَرَاشَاتِ الرَّاقِصَةِ حَتَّى وَصَلَ إِلَى حَقْلٍ وَاسِعٍ أَخْضَرَ.\nوَفَجْأَةً، لَمَحَ بِعَيْنَيْهِ الذَّكِيَّتَيْنِ أَوْرَاقاً خَضْرَاءَ كَثِيفَةً تَخْرُجُ مِنَ الأَرْضِ، وَتَحْتَهَا جَزَرَةٌ عِمْلَاقَةٌ تَلْمَعُ كَأَنَّهَا قِطْعَةٌ مِنَ الذَّهَبِ الخَالِصِ!',
+          mainEmoji: '🥕',
+          sideEmoji1: '✨',
+          sideEmoji2: '🦋',
+          bgTint: Color(0xFFFFFBEB),
+        ),
+        StoryPageData(
+          pageTitle: 'المُحَاوَلَةُ الأُولَى',
+          text: 'فَرِحَ «فَصِيحٌ» فَرَحاً شَدِيداً، وَأَمْسَكَ بِأَوْرَاقِ الجَزَرَةِ بِكِلْتَا يَدَيْهِ الصَّغِيرَتَيْنِ، وَبَدَأَ يَشُدُّ بِكُلِّ قُوَّتِهِ: «وَاحِدٌ.. اثْنَانِ.. ثَلَاثَةٌ!».\nلَكِنَّ الجَزَرَةَ الكَبِيرَةَ كَانَتْ مَغْرُوسَةً بِعُمْقٍ فِي التُّرْبَةِ، فَلَمْ تَتَحَرَّكْ مِنْ مَكَانِهَا قَيْدَ أُنْمُلَةٍ، وَجَلَسَ فَصِيحٌ يَلْهَثُ مِنْ شِدَّةِ التَّعَبِ.',
+          mainEmoji: '💦',
+          sideEmoji1: '🌱',
+          sideEmoji2: '😓',
+          bgTint: Color(0xFFF0F9FF),
+        ),
+        StoryPageData(
+          pageTitle: 'طَلَبُ المُسَاعَدَةِ بِأَدَبٍ',
+          text: 'فَكَّرَ «فَصِيحٌ» قَلِيلاً ثُمَّ قَالَ فِي نَفْسِهِ: «يَدٌ وَاحِدَةٌ لَا تُصَفِّقُ، سَأَطْلُبُ المُسَاعَدَةَ مِنْ أَصْدِقَائِي».\nرَأَى السِّنْجَابَ السَّرِيعَ يَقْفِزُ فَوْقَ الشَّجَرَةِ، فَنَادَاهُ بِابْتِسَامَةٍ لَطِيفَةٍ: «صَبَاحُ الخَيْرِ يَا صَدِيقِي السِّنْجَابَ، هَلْ يُمْكِنُكَ أَنْ تُسَاعِدَنِي فِي إِخْرَاجِ هَذِهِ الجَزَرَةِ الكَبِيرَةِ؟». فَرَحَّبَ السِّنْجَابُ بِسُرُورٍ.',
+          mainEmoji: '🐿️',
+          sideEmoji1: '💬',
+          sideEmoji2: '🌳',
+          bgTint: Color(0xFFFDF2F8),
+        ),
+        StoryPageData(
+          pageTitle: 'انْضِمَامُ السُّلَحْفَاةِ الحَكِيمَةِ',
+          text: 'أَمْسَكَ الأَرْنَبُ بِالجَزَرَةِ، وَأَمْسَكَ السِّنْجَابُ بِالأَرْنَبِ، وَشَدَّا مَعاً بِحَمَاسٍ، فَتَحَرَّكَتِ الجَزَرَةُ قَلِيلاً لَكِنَّهَا بَقِيَتْ عَالِقَةً!\nمَرَّتْ بِجَانِبِهِمَا السُّلَحْفَاةُ الطَّيِّبَةُ، فَقَالَتْ لَهُمَا: «أَنَا مَعَكُمَا يَا أَصْدِقَائِي، فَبِالتَّعَاوُنِ يَصِيرُ الصَّعْبُ سَهْلاً!»، وَوَقَفَتْ خَلْفَ السِّنْجَابِ لِتُشَارِكَهُمَا الجُهْدَ.',
+          mainEmoji: '🐢',
+          sideEmoji1: '🤝',
+          sideEmoji2: '💪',
+          bgTint: Color(0xFFECFDF5),
+        ),
+        StoryPageData(
+          pageTitle: 'مُسَاعَدَةُ القُنْفُذِ الصَّغِيرِ',
+          text: 'شَاهَدَ القُنْفُذُ الصَّغِيرُ مَا يَحْدُثُ فَأَسْرَعَ إِلَيْهِمْ قَائِلاً: «سَأَحْفِرُ التُّرْبَةَ حَوْلَ الجَزَرَةِ بِأَظَافِرِي الصَّغِيرَةِ حَتَّى تَلِينَ الأَرْضُ!».\nبَدَأَ القُنْفُذُ يُزِيحُ التُّرَابَ بِنَشَاطٍ، بَيْنَمَا اصْطَفَّ الأَرْنَبُ وَالسِّنْجَابُ وَالسُّلَحْفَاةُ فِي صَفٍّ وَاحِدٍ مُتَمَاسِكٍ.',
+          mainEmoji: '🦔',
+          sideEmoji1: '⛏️',
+          sideEmoji2: '🌻',
+          bgTint: Color(0xFFFFFBEB),
+        ),
+        StoryPageData(
+          pageTitle: 'لَحْظَةُ النَّجَاحِ العَظِيمَةِ',
+          text: 'صَاحَ الجَمِيعُ بِصَوْتٍ وَاحِدٍ مَلِيءٍ بِالحَمَاسِ: «هَيَّا مَعاً.. وَاحِدٌ.. اثْنَانِ.. ثَلَاثَةٌ!».\nوَفِي لَحْظَةٍ رَائِعَةٍ، انْتَزَعُوا الجَزَرَةَ الذَّهَبِيَّةَ العِمْلَاقَةَ مِنَ الأَرْضِ، وَتَعَالَتْ ضَحِكَاتُهُمْ وَتَصْفِيقُهُمْ فَرَحاً بِهَذَا الإِنْجَازِ الجَمَاعِيِّ الرَّائِعِ!',
+          mainEmoji: '🎉',
+          sideEmoji1: '🥕',
+          sideEmoji2: '👏',
+          bgTint: Color(0xFFF0F9FF),
+        ),
+        StoryPageData(
+          pageTitle: 'وَلِيمَةُ المَحَبَّةِ وَالمُشَارَكَةِ',
+          text: 'غَسَلَ «فَصِيحٌ» الجَزَرَةَ بِمَاءِ الغَدِيرِ الصَّافِي، وَقَطَّعَهَا إِلَى أَرْبَعِ قِطَعٍ مُتَسَاوِيَةٍ، وَقَدَّمَهَا لِأَصْدِقَائِهِ قَائِلاً: «هَذِهِ ثَمَرَةُ تَعَاوُنِنَا جَمِيعاً، تَفَضَّلُوا يَا أَحْبَابِي!».\nأَكَلَ الأَصْدِقَاءُ مَعاً فِي سَعَادَةٍ وَوِئَامٍ، وَتَعَلَّمُوا أَنَّ الصَّدَاقَةَ وَالتَّعَاوُنَ هُمَا أَجْمَلُ كَنْزٍ فِي الحَيَاةِ.',
+          mainEmoji: '❤️',
+          sideEmoji1: '🐰',
+          sideEmoji2: '🌟',
+          bgTint: Color(0xFFFDF2F8),
+        ),
       ],
     ),
     StoryBookItem(
@@ -447,9 +512,30 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
       imagePath: 'assets/images/owl_mascot.png',
       color: Color(0xFF7C3AED),
       pages: [
-        StoryPageData(text: 'فِي الغَابَةِ المَضِيئَةِ، كَانَ البُلْبُلُ الصَّغِيرُ يَخْجَلُ مِنَ الغِنَاءِ أَمَامَ طُيُورِ الغَابَةِ خَوْفاً مِنَ الخَطَأِ.', emoji: '🐦🙈🌳', audioFile: 'story_owl.mp3', bgTint: Color(0xFFF5F3FF)),
-        StoryPageData(text: 'اقْتَرَبَ مِنْهُ البُومُ الحَكِيمُ «فَصِيحٌ» وَقَالَ لَهُ بِابْتِسَامَةٍ دَافِئَةٍ: «صَوْتُكَ جَمِيلٌ يَا بُنَيَّ، وَالتَّجْرِبَةُ هِيَ طَرِيقُ النَّجَاحِ!».', emoji: '🦉💛✨', audioFile: 'story_owl.mp3', bgTint: Color(0xFFFFFBEB)),
-        StoryPageData(text: 'تَشَجَّعَ البُلْبُلُ وَانْطَلَقَ يُغَرِّدُ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ، فَصَفَّقَتْ لَهُ الطُّيُورُ بِإِعْجَابٍ وَفَرَحٍ شَدِيدٍ!', emoji: '🎶🐦👏', audioFile: 'story_owl.mp3', bgTint: Color(0xFFECFDF5)),
+        StoryPageData(
+          pageTitle: 'البُلْبُلُ الخَجُولُ',
+          text: 'فِي الغَابَةِ المَضِيئَةِ، كَانَ البُلْبُلُ الصَّغِيرُ يَخْجَلُ مِنَ الغِنَاءِ أَمَامَ طُيُورِ الغَابَةِ خَوْفاً مِنَ الخَطَأِ، فَيَجْلِسُ وَحِيداً فَوْقَ الغُصْنِ العَالِي.',
+          mainEmoji: '🐦',
+          sideEmoji1: '🙈',
+          sideEmoji2: '🌳',
+          bgTint: Color(0xFFF5F3FF),
+        ),
+        StoryPageData(
+          pageTitle: 'نَصِيحَةُ البُومِ الحَكِيمِ',
+          text: 'اقْتَرَبَ مِنْهُ البُومُ الحَكِيمُ «فَصِيحٌ» وَقَالَ لَهُ بِابْتِسَامَةٍ دَافِئَةٍ: «صَوْتُكَ جَمِيلٌ يَا بُنَيَّ، وَالمُحَاوَلَةُ وَالتَّدْرِيبُ هُمَا طَرِيقُ النَّجَاحِ وَالتَّفَوُّقِ!»',
+          mainEmoji: '🦉',
+          sideEmoji1: '💛',
+          sideEmoji2: '✨',
+          bgTint: Color(0xFFFFFBEB),
+        ),
+        StoryPageData(
+          pageTitle: 'أَجْمَلُ تَغْرِيدٍ فِي الغَابَةِ',
+          text: 'تَشَجَّعَ البُلْبُلُ وَانْطَلَقَ يُغَرِّدُ بِأَعْذَبِ الأَلْحَانِ الفَصِيحَةِ، فَاجْتَمَعَتْ حَوْلَهُ الطُّيُورُ تُصَفِّقُ لَهُ بِإِعْجَابٍ وَفَرَحٍ شَدِيدٍ!',
+          mainEmoji: '🎶',
+          sideEmoji1: '🐦',
+          sideEmoji2: '👏',
+          bgTint: Color(0xFFECFDF5),
+        ),
       ],
     ),
   ];
@@ -463,6 +549,10 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
   @override
   void initState() {
     super.initState();
+    _storyAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
     _player.onPlayerComplete.listen((_) {
       if (mounted) {
         setState(() {
@@ -474,10 +564,17 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
 
   @override
   void dispose() {
+    _storyAnimCtrl.dispose();
     _videoController?.dispose();
     _yt.close();
     _player.dispose();
     super.dispose();
+  }
+
+  Future<void> _playPageFlipEffect() async {
+    try {
+      await SystemSound.play(SystemSoundType.click);
+    } catch (_) {}
   }
 
   Future<void> _playAudioTrack(String fileName, String bubbleText, {int bonusStars = 0}) async {
@@ -523,7 +620,7 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
         _owlBubble = 'اخْتَرْ أُنْشُودَةً مِنَ الدَّوَائِرِ الثَّلَاثَةِ لِتَسْتَمِعَ إِلَيْهَا!';
       } else if (_screenIndex == 2 && _selectedBookIndex != -1) {
         _selectedBookIndex = -1;
-        _owlBubble = 'اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ الدَّائِرِيَّةِ!';
+        _owlBubble = 'اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ الدَّائِرِيَّةِ لِتَقْرَأَهَا!';
       } else if (_screenIndex == 3 && _selectedQuizIndex != -1) {
         _selectedQuizIndex = -1;
         _owlBubble = 'اخْتَرْ لُعْبَةً مِنَ الأَلْعَابِ الدَّائِرِيَّةِ!';
@@ -563,6 +660,7 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
   }
 
   Future<void> _toggleStopPlay() async {
+    if (_screenIndex == 2) return;
     if (_isPlaying) {
       await _player.stop();
       setState(() => _isPlaying = false);
@@ -747,12 +845,14 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
               child: Text(_owlBubble, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton.filled(
-            style: IconButton.styleFrom(backgroundColor: _isPlaying ? const Color(0xFFEF4444) : const Color(0xFF10B981), padding: const EdgeInsets.all(10)),
-            onPressed: _toggleStopPlay,
-            icon: Icon(_isPlaying ? Icons.stop_rounded : Icons.volume_up_rounded, size: 26),
-          ),
+          if (_screenIndex != 2) ...[
+            const SizedBox(width: 8),
+            IconButton.filled(
+              style: IconButton.styleFrom(backgroundColor: _isPlaying ? const Color(0xFFEF4444) : const Color(0xFF10B981), padding: const EdgeInsets.all(10)),
+              onPressed: _toggleStopPlay,
+              icon: Icon(_isPlaying ? Icons.stop_rounded : Icons.volume_up_rounded, size: 26),
+            ),
+          ],
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -838,8 +938,8 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
             ),
             const SizedBox(width: 14),
             _buildCircularIconPortal(
-              label: '📖 القِصَصُ',
-              subLabel: 'Interactive Stories',
+              label: '📖 القِصَصُ المَقْرُوءَةُ',
+              subLabel: 'Reading Stories',
               imagePath: 'assets/images/card_stories.png',
               ringColor: const Color(0xFF8B5CF6),
               badgeBg: const Color(0xFFF5F3FF),
@@ -849,7 +949,7 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
                   _isPlaying = false;
                   _screenIndex = 2;
                   _selectedBookIndex = -1;
-                  _owlBubble = '👏 اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ وَاضْغَطْ عَلَيْهَا لِتَقْرَأَهَا!';
+                  _owlBubble = '📖 اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ لِتَقْرَأَهَا بِنَفْسِكَ وَتَتَقَلَّبَ بَيْنَ صَفَحَاتِهَا!';
                 });
               },
             ),
@@ -1047,16 +1147,17 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
           return _buildCircularIconPortal(
             circleSize: 165,
             label: '📖 ${book.title}',
-            subLabel: book.englishTitle,
+            subLabel: '${book.pages.length} صَفَحَاتٍ مَقْرُوءَةٍ',
             imagePath: book.imagePath,
             ringColor: book.color,
             badgeBg: Colors.white,
             onTap: () {
+              _playPageFlipEffect();
               setState(() {
                 _selectedBookIndex = i;
                 _currentPageIndex = 0;
+                _owlBubble = 'أَنْتَ تَقْرَأُ الآنَ: ${book.title} (${book.pages[0].pageTitle})';
               });
-              _playAudioTrack(book.pages[0].audioFile, 'تَقْرَأُ الآنَ صَفْحَةَ ١ كَامِلَةً مِنْ: ${book.title}');
             },
           );
         }),
@@ -1071,7 +1172,12 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
       child: Container(
-        decoration: BoxDecoration(color: const Color(0xFFFFFDF7), borderRadius: BorderRadius.circular(32), border: Border.all(color: book.color, width: 5)),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFDF7),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: book.color, width: 5),
+          boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 16, offset: Offset(0, 6))],
+        ),
         child: Column(
           children: [
             Container(
@@ -1081,7 +1187,14 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
                 children: [
                   const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 26),
                   const SizedBox(width: 10),
-                  Expanded(child: Text(book.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 19))),
+                  Expanded(
+                    child: Text(
+                      '${book.title}  •  ${page.pageTitle}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                     decoration: BoxDecoration(color: Colors.white.withAlpha(50), borderRadius: BorderRadius.circular(16)),
@@ -1091,82 +1204,234 @@ class _FaseehWorldStageState extends State<FaseehWorldStage> {
               ),
             ),
             Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: Container(
-                      margin: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(color: page.bgTint, borderRadius: BorderRadius.circular(24), border: Border.all(color: book.color.withAlpha(110), width: 3)),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          ClipRRect(borderRadius: BorderRadius.circular(21), child: Opacity(opacity: 0.35, child: Image.asset(book.imagePath, fit: BoxFit.cover))),
-                          Center(child: Text(page.emoji, style: const TextStyle(fontSize: 64))),
-                        ],
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 420),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale: Tween<double>(begin: 0.96, end: 1.0).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Row(
+                  key: ValueKey<int>(_currentPageIndex),
+                  children: [
+                    // صفحة الرسوم المتحركة (يمين الكتاب)
+                    Expanded(
+                      flex: 4,
+                      child: Container(
+                        margin: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: page.bgTint,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: book.color.withAlpha(120), width: 3.5),
+                        ),
+                        child: AnimatedBuilder(
+                          animation: _storyAnimCtrl,
+                          builder: (_, __) {
+                            final double t = _storyAnimCtrl.value;
+                            final double dy = math.sin(t * math.pi) * -14;
+                            final double scale = 0.94 + (t * 0.14);
+                            final double angle = math.sin(t * math.pi * 2) * 0.08;
+                            return Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Opacity(
+                                    opacity: 0.25,
+                                    child: Image.asset(book.imagePath, fit: BoxFit.cover),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 18 + (t * 10),
+                                  right: 22,
+                                  child: Transform.rotate(
+                                    angle: -angle,
+                                    child: Text(page.sideEmoji1, style: const TextStyle(fontSize: 40)),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 18 + ((1 - t) * 10),
+                                  left: 22,
+                                  child: Transform.rotate(
+                                    angle: angle,
+                                    child: Text(page.sideEmoji2, style: const TextStyle(fontSize: 40)),
+                                  ),
+                                ),
+                                Center(
+                                  child: Transform.translate(
+                                    offset: Offset(0, dy),
+                                    child: Transform.scale(
+                                      scale: scale,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(18),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white.withAlpha(220),
+                                          border: Border.all(color: book.color, width: 3.5),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: book.color.withAlpha(90),
+                                              blurRadius: 18,
+                                              spreadRadius: 2,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(page.mainEmoji, style: const TextStyle(fontSize: 72)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                  Container(width: 3, margin: const EdgeInsets.symmetric(vertical: 16), color: book.color.withAlpha(60)),
-                  Expanded(
-                    flex: 6,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Expanded(child: Center(child: SingleChildScrollView(child: Text(page.text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 27, height: 1.7, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)))))),
-                          if (isLastPage)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF59E0B), width: 2)),
-                              child: Text('🌟 ${book.moral}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                    // فاصل منتصف الكتاب المفتوح
+                    Container(width: 4, margin: const EdgeInsets.symmetric(vertical: 14), color: book.color.withAlpha(70)),
+                    // صفحة النص المقروء (يسار الكتاب)
+                    Expanded(
+                      flex: 6,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 14, 22, 10),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Center(
+                                child: SingleChildScrollView(
+                                  child: Text(
+                                    page.text,
+                                    textAlign: TextAlign.justify,
+                                    style: TextStyle(
+                                      fontSize: _storyFontSize,
+                                      height: 1.75,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                        ],
+                            if (isLastPage)
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(top: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFF59E0B), width: 2.5),
+                                ),
+                                child: Text(
+                                  '🌟 ${book.moral}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
+            // شريط التنقل بين صفحات الكتاب مع المؤثر الصوتي الخفيف
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: isFirstPage ? Colors.grey.shade300 : const Color(0xFF0284C7), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isFirstPage ? Colors.grey.shade300 : const Color(0xFF0284C7),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    ),
                     onPressed: isFirstPage
                         ? null
                         : () {
+                            _playPageFlipEffect();
                             final int prev = _currentPageIndex - 1;
-                            setState(() => _currentPageIndex = prev);
-                            _playAudioTrack(book.pages[prev].audioFile, 'تَقْرَأُ الآنَ صَفْحَةَ ${prev + 1} كَامِلَةً!');
+                            setState(() {
+                              _currentPageIndex = prev;
+                              _owlBubble = 'صَفْحَةُ ${prev + 1}: ${book.pages[prev].pageTitle}';
+                            });
                           },
-                    icon: const Icon(Icons.arrow_back_rounded, size: 28),
-                    label: const Text('الصَّفْحَةُ السَّابِقَةُ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    icon: const Icon(Icons.arrow_back_rounded, size: 26),
+                    label: const Text('الصَّفْحَةُ السَّابِقَةُ', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                   ),
-                  FilledButton.tonalIcon(
-                    style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                    onPressed: () => _playAudioTrack(page.audioFile, 'إِعَادَةُ قِرَاءَةِ صَفْحَةِ ${_currentPageIndex + 1} كَامِلَةً!'),
-                    icon: Icon(_isPlaying ? Icons.graphic_eq_rounded : Icons.volume_up_rounded, size: 26),
-                    label: Text(_isPlaying ? 'يَقْرَأُ الصَّفْحَةَ...' : 'إِعَادَةُ قِرَاءَةِ الصَّفْحَةِ 🔊', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      IconButton.filledTonal(
+                        tooltip: 'تَصْغِيرُ الخَطِّ',
+                        onPressed: () {
+                          _playPageFlipEffect();
+                          if (_storyFontSize > 18) {
+                            setState(() => _storyFontSize -= 2);
+                          }
+                        },
+                        icon: const Icon(Icons.text_decrease_rounded),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: book.color.withAlpha(25),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          '${_currentPageIndex + 1} / ${book.pages.length}',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: book.color),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        tooltip: 'تَكْبِيرُ الخَطِّ',
+                        onPressed: () {
+                          _playPageFlipEffect();
+                          if (_storyFontSize < 32) {
+                            setState(() => _storyFontSize += 2);
+                          }
+                        },
+                        icon: const Icon(Icons.text_increase_rounded),
+                      ),
+                    ],
                   ),
                   ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: isLastPage ? const Color(0xFF10B981) : const Color(0xFFF59E0B), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isLastPage ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    ),
                     onPressed: () {
                       if (!isLastPage) {
+                        _playPageFlipEffect();
                         final int next = _currentPageIndex + 1;
-                        setState(() => _currentPageIndex = next);
-                        _playAudioTrack(book.pages[next].audioFile, 'تَقْرَأُ الآنَ صَفْحَةَ ${next + 1} كَامِلَةً!');
+                        setState(() {
+                          _currentPageIndex = next;
+                          _owlBubble = 'صَفْحَةُ ${next + 1}: ${book.pages[next].pageTitle}';
+                        });
                       } else {
-                        _playAudioTrack('bravo.mp3', '👏 أَحْسَنْتَ! أَنْهَيْتَ القِصَّةَ بِبَرَاعَةٍ! +10 نُجُومٍ!', bonusStars: 10);
-                        setState(() => _selectedBookIndex = -1);
+                        _playAudioTrack(
+                          'bravo.mp3',
+                          '🎉 أَحْسَنْتَ يَا قَارِئَ الفُصْحَى! أَتْمَمْتَ القِصَّةَ وَرَبِحْتَ 15 نَجْمَةً!',
+                          bonusStars: 15,
+                        );
+                        setState(() {
+                          _selectedBookIndex = -1;
+                        });
                       }
                     },
-                    icon: Icon(isLastPage ? Icons.star_rounded : Icons.arrow_forward_rounded, size: 28),
-                    label: Text(isLastPage ? 'أَنْهَيْتُ القِصَّةَ (+10 ⭐)' : 'الصَّفْحَةُ التَّالِيَةُ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    icon: Icon(isLastPage ? Icons.star_rounded : Icons.arrow_forward_rounded, size: 26),
+                    label: Text(isLastPage ? 'أَتْمَمْتُ القِرَاءَةَ (+15 ⭐)' : 'الصَّفْحَةُ التَّالِيَةُ', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
