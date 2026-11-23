@@ -309,7 +309,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
       ),
       pages: [
         StoryPageData(
-          pageTitle: 'صبَاحٌ جَمِيلٌ فِي الغَابَةِ',
+          pageTitle: 'صَبَاحٌ جَمِيلٌ فِي الغَابَةِ',
           text: 'فِي غَابَةٍ خَضْرَاءَ وَاسِعَةٍ، عَاشَ أَرْنَبٌ صَغِيرٌ ذَكِيٌّ اسْمُهُ «فَصِيحٌ».\nكَانَ «فَصِيحٌ» يُحِبُّ اللُّغَةَ العَرَبِيَّةَ الفُصْحَى وَيَسْتَيْقِظُ مُبَكِّراً لِيَسْتَمِعَ إِلَى زَقْزَقَةِ العَصَافِيرِ.',
           mainActor: '🐰',
           actor2: '🐦',
@@ -610,7 +610,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
       pages: [
         StoryPageData(
           pageTitle: 'نُزْهَةٌ بِجَانِبِ النَّهْرِ',
-          text: 'كَانَتِ السُّلَحْفَاةُ الطَّيِّبَةُ «سَلْمَى» تَمْشِي بِهُدُوءٍ عَلَى ضِفَّةِ النَّهْرِ الصَّافِي تَتَأَمَّلُ السَّمَكُ الصَّغِيرَ.\nكَانَتْ «سَلْمَى» مَعْرُوفَةً بَيْنَ جَمِيعِ حَيَوَانَاتِ الغَابَةِ بِصِدْقِهَا وَأَمَانَتِهَا وَحُبِّهَا لِلْخَيْرِ.',
+          text: 'كَانَتِ السُّلَحْفَاةُ الطَّيِّبَةُ «سَلْمَى» تَمْشِي بِهُدُوءٍ عَلَى ضِفَّةِ النَّهْرِ الصَّافِي تَتَأَمَّلُ السَّمَكَ الصَّغِيرَ.\nكَانَتْ «سَلْمَى» مَعْرُوفَةً بَيْنَ جَمِيعِ حَيَوَانَاتِ الغَابَةِ بِصِدْقِهَا وَأَمَانَتِهَا وَحُبِّهَا لِلْخَيْرِ.',
           mainActor: '🐢',
           actor2: '🐟',
           actor3: '🌊',
@@ -901,6 +901,17 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   @override
   void initState() {
     super.initState();
+    AudioPlayer.global.setAudioContext(
+      AudioContext(
+        android: const AudioContextAndroid(
+          isSpeakerphoneOn: false,
+          stayAwake: true,
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.gain,
+        ),
+      ),
+    );
     _natureAnimCtrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
@@ -915,6 +926,9 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
           _isPlaying = false;
         });
       }
+    });
+    Future.delayed(const Duration(milliseconds: 600), () {
+      _playAudioTrack('welcome.mp3', _owlBubble);
     });
   }
 
@@ -935,8 +949,12 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     try {
       await _ambiencePlayer.stop();
       await _ambiencePlayer.setReleaseMode(ReleaseMode.loop);
-      await _ambiencePlayer.play(AssetSource('audio/nature_forest.mp3'), volume: 0.30);
-    } catch (_) {}
+      await _ambiencePlayer.play(AssetSource('audio/nature_forest.mp3'), volume: 0.35);
+    } catch (_) {
+      try {
+        await _ambiencePlayer.play(AssetSource('nature_forest.mp3'), volume: 0.35);
+      } catch (_) {}
+    }
   }
 
   Future<void> _stopNatureAmbience() async {
@@ -949,8 +967,12 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     try {
       await _sfxPlayer.stop();
       await _sfxPlayer.setReleaseMode(ReleaseMode.stop);
-      await _sfxPlayer.play(AssetSource('audio/page_flip.mp3'), volume: 0.7);
-    } catch (_) {}
+      await _sfxPlayer.play(AssetSource('audio/page_flip.mp3'), volume: 0.85);
+    } catch (_) {
+      try {
+        await _sfxPlayer.play(AssetSource('page_flip.mp3'), volume: 0.85);
+      } catch (_) {}
+    }
   }
 
   void _triggerBookPageFlip() {
@@ -975,7 +997,10 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         await _player.play(AssetSource(fileName), volume: 1.0);
       } catch (_) {
         if (mounted) {
-          setState(() => _isPlaying = false);
+          setState(() {
+            _isPlaying = false;
+            _owlBubble = 'تَعَذَّرَ تَشْغِيلُ الصَّوْتِ: $fileName';
+          });
         }
       }
     }
