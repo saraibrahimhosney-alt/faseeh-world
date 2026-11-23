@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:video_player/video_player.dart';
@@ -906,9 +907,9 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         android: const AudioContextAndroid(
           isSpeakerphoneOn: false,
           stayAwake: true,
-          contentType: AndroidContentType.music,
+          contentType: AndroidContentType.sonification,
           usageType: AndroidUsageType.media,
-          audioFocus: AndroidAudioFocus.gain,
+          audioFocus: AndroidAudioFocus.none,
         ),
       ),
     );
@@ -944,17 +945,52 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     super.dispose();
   }
 
+  // توليد صوت تقليب ورق حقيقي في الذاكرة يعمل فوراً عند قلب الصفحات
+  Uint8List _generatePaperFlipWav() {
+    const int sampleRate = 22050;
+    const int numSamples = (sampleRate * 0.22).toInt();
+    final ByteData buffer = ByteData(44 + numSamples);
+
+    void writeStr(int offset, String s) {
+      for (int i = 0; i < s.length; i++) {
+        buffer.setUint8(offset + i, s.codeUnitAt(i));
+      }
+    }
+
+    writeStr(0, 'RIFF');
+    buffer.setUint32(4, 36 + numSamples, Endian.little);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    buffer.setUint32(16, 16, Endian.little);
+    buffer.setUint16(20, 1, Endian.little);
+    buffer.setUint16(22, 1, Endian.little);
+    buffer.setUint32(24, sampleRate, Endian.little);
+    buffer.setUint32(28, sampleRate, Endian.little);
+    buffer.setUint16(32, 1, Endian.little);
+    buffer.setUint16(34, 8, Endian.little);
+    writeStr(36, 'data');
+    buffer.setUint32(40, numSamples, Endian.little);
+
+    final math.Random rng = math.Random(42);
+    double prev = 0.0;
+    for (int i = 0; i < numSamples; i++) {
+      final double progress = i / numSamples;
+      final double envelope = math.sin(progress * math.pi);
+      final double white = (rng.nextDouble() * 2.0 - 1.0);
+      prev = prev * 0.65 + white * 0.35;
+      final int sample = (128 + (prev * envelope * 115)).clamp(0, 255).toInt();
+      buffer.setUint8(44 + i, sample);
+    }
+    return buffer.buffer.asUint8List();
+  }
+
   Future<void> _startNatureAmbience() async {
     if (!_natureSoundEnabled) return;
     try {
       await _ambiencePlayer.stop();
       await _ambiencePlayer.setReleaseMode(ReleaseMode.loop);
       await _ambiencePlayer.play(AssetSource('audio/nature_forest.mp3'), volume: 0.35);
-    } catch (_) {
-      try {
-        await _ambiencePlayer.play(AssetSource('nature_forest.mp3'), volume: 0.35);
-      } catch (_) {}
-    }
+    } catch (_) {}
   }
 
   Future<void> _stopNatureAmbience() async {
@@ -967,10 +1003,10 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     try {
       await _sfxPlayer.stop();
       await _sfxPlayer.setReleaseMode(ReleaseMode.stop);
-      await _sfxPlayer.play(AssetSource('audio/page_flip.mp3'), volume: 0.85);
+      await _sfxPlayer.play(AssetSource('audio/page_flip.mp3'), volume: 1.0);
     } catch (_) {
       try {
-        await _sfxPlayer.play(AssetSource('page_flip.mp3'), volume: 0.85);
+        await _sfxPlayer.play(BytesSource(_generatePaperFlipWav()), volume: 1.0);
       } catch (_) {}
     }
   }
@@ -993,15 +1029,11 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     try {
       await _player.play(AssetSource('audio/$fileName'), volume: 1.0);
     } catch (_) {
-      try {
-        await _player.play(AssetSource(fileName), volume: 1.0);
-      } catch (_) {
-        if (mounted) {
-          setState(() {
-            _isPlaying = false;
-            _owlBubble = 'تَعَذَّرَ تَشْغِيلُ الصَّوْتِ: $fileName';
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _owlBubble = '⚠️ مَلَفُّ الصَّوْتِ غَيْرُ مَوْجُودٍ: assets/audio/$fileName';
+        });
       }
     }
     Future.delayed(const Duration(milliseconds: 400), () {
@@ -1521,7 +1553,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     );
   }
 
-  // عرض جميع أبيات الأنشودة كاملة دفعة واحدة على الصفحة أثناء الغناء
   Widget _buildSingleSongPlayer(SongItem s) {
     final bool active = _currentTrack == s.audioFile && _isPlaying;
     final int half = (s.verses.length / 2).ceil();
