@@ -23,7 +23,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-
+          cache: true 
       - name: Prepare structure and copy your real audio & images
         run: |
           flutter create . --platforms=android --project-name faseeh_world
