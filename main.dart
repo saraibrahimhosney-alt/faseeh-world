@@ -211,7 +211,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
       title: 'أُنْشُودَةُ الحُرُوفِ الهِجَائِيَّةِ',
       englishTitle: 'Arabic Alphabet Chant',
       subtitle: 'هَيَّا نُنْشِدُ حُرُوفَ لُغَتِنَا الجَمِيلَةِ!',
-      audioFile: 'alphabet.mp3',
+      audioFile: 'song_alphabet.mp3',
       emoji: '🔤',
       imagePath: 'assets/images/card_songs.png',
       color: Color(0xFFEC4899),
@@ -250,7 +250,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
       title: 'أُنْشُودَةُ الأَرْقَامِ المَرِحَةِ',
       englishTitle: 'Numbers Song (1 - 10)',
       subtitle: 'تَعَلَّمِ العَدَّ بِالعَرَبِيَّةِ الفُصْحَى!',
-      audioFile: 'numbers.mp3',
+      audioFile: 'song_numbers.mp3',
       emoji: '🔢',
       imagePath: 'assets/images/owl_mascot.png',
       color: Color(0xFF0284C7),
@@ -268,10 +268,10 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
       ],
     ),
     SongItem(
-      title: 'أُنْشُودَةُ الطَّبِيعَةِ وَالغَابَةِ',
-      englishTitle: 'Nature & Forest Song',
+      title: 'أُنْشُودَةُ الطَّبِيعَةِ وَالصَّبَاحِ',
+      englishTitle: 'Nature & Morning Song',
       subtitle: 'أُنْشُودَةُ الأَشْجَارِ وَالعَصَافِيرِ!',
-      audioFile: 'nature.mp3',
+      audioFile: 'song_morning.mp3',
       emoji: '🌳',
       imagePath: 'assets/images/card_stories.png',
       color: Color(0xFF059669),
@@ -290,7 +290,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     ),
   ];
 
-  // 6 قصص كاملة بالتشكيل - كل قصة 8 صفحات + سؤال تفاعلي في النهاية
   final List<StoryBookItem> _books = const [
     StoryBookItem(
       title: 'مُغَامَرَةُ الأَرْنَبِ الفَصِيحِ',
@@ -934,7 +933,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     super.dispose();
   }
 
-  // توليد صوت تقليب ورق حقيقي في الذاكرة يعمل فوراً عند قلب الصفحات
   Uint8List _generatePaperFlipWav() {
     const int sampleRate = 22050;
     final int numSamples = (sampleRate * 0.22).toInt();
@@ -978,7 +976,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     try {
       await _ambiencePlayer.stop();
       await _ambiencePlayer.setReleaseMode(ReleaseMode.loop);
-      await _ambiencePlayer.play(AssetSource('audio/nature_forest.mp3'), volume: 0.35);
+      await _ambiencePlayer.play(AssetSource('audio/song_morning.mp3'), volume: 0.35);
     } catch (_) {}
   }
 
@@ -992,12 +990,8 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     try {
       await _sfxPlayer.stop();
       await _sfxPlayer.setReleaseMode(ReleaseMode.stop);
-      await _sfxPlayer.play(AssetSource('audio/page_flip.mp3'), volume: 1.0);
-    } catch (_) {
-      try {
-        await _sfxPlayer.play(BytesSource(_generatePaperFlipWav()), volume: 1.0);
-      } catch (_) {}
-    }
+      await _sfxPlayer.play(BytesSource(_generatePaperFlipWav()), volume: 1.0);
+    } catch (_) {}
   }
 
   void _triggerBookPageFlip() {
@@ -1013,15 +1007,15 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
       _owlBounce = true;
       _stars += bonusStars;
     });
-    await _player.stop();
-    await _player.setReleaseMode(ReleaseMode.stop);
     try {
+      await _player.stop();
+      await _player.setReleaseMode(ReleaseMode.stop);
       await _player.play(AssetSource('audio/$fileName'), volume: 1.0);
     } catch (_) {
       if (mounted) {
         setState(() {
           _isPlaying = false;
-          _owlBubble = '⚠️ مَلَفُّ الصَّوْتِ غَيْرُ مَوْجُودٍ: assets/audio/$fileName';
+          _owlBubble = '⚠️ تعذر تشغيل الصوت (audio/$fileName)';
         });
       }
     }
@@ -1086,7 +1080,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
       if (mounted) {
         setState(() {
           _isVideoLoading = false;
-          _videoError = 'تَعَذَّرَ تَحْمِيلُ الفِيدْيُو حَالِيّاً، تَأَكَّدْ مِنَ الاتِّصَالِ بِالإِنْتَرْنِت.';
+          _videoError = 'تعذر تحميل الفيديو حالياً. تأكدي من الاتصال بالإنترنت أو صلاحية المقطع.';
         });
       }
     }
@@ -1128,7 +1122,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_videoError ?? 'اضْغَطْ لِتَشْغِيلِ الفِيدْيُو', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+            Text(_videoError ?? 'اضْغَطْ لِتَشْغِيلِ الفِيدْيُو', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
             const SizedBox(height: 10),
             FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded), label: const Text('إِعَادَةُ المُحَاوَلَةِ')),
           ],
