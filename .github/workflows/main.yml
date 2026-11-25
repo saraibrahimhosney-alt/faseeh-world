@@ -23,15 +23,55 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true 
+          cache: true
+
       - name: Prepare structure and copy your real audio & images
         run: |
           flutter create . --platforms=android --project-name faseeh_world
           mkdir -p lib assets/images assets/audio
-          cp main.dart lib/main.dart
-          cp *.png assets/images/ || true
-          cp *.mp3 assets/audio/ || true
-          ls -la assets/audio/
+          if [ -f "main.dart" ]; then
+            cp main.dart lib/main.dart
+          fi
+          find . -maxdepth 2 -type f -name "*.png" ! -path "./android/*" ! -path "./assets/*" -exec cp {} assets/images/ \;
+          find . -maxdepth 2 -type f -name "*.mp3" ! -path "./android/*" ! -path "./assets/*" -exec cp {} assets/audio/ \;
+          ls -la assets/images/ assets/audio/
+
+      - name: Configure pubspec.yaml dependencies and assets
+        run: |
+          python3 - << 'EOF'
+          from pathlib import Path
+
+          pubspec_path = Path("pubspec.yaml")
+          content = pubspec_path.read_text(encoding="utf-8")
+
+          deps = [
+              "  audioplayers: ^6.1.0",
+              "  video_player: ^2.9.2",
+              "  youtube_explode_dart: ^2.3.6",
+          ]
+          for dep in deps:
+              pkg_name = dep.strip().split(":")[0]
+              if pkg_name not in content:
+                  content = content.replace(
+                      "  cupertino_icons: ^1.0.8\n",
+                      "  cupertino_icons: ^1.0.8\n" + dep + "\n",
+                  )
+
+          if "assets/images/" not in content:
+              asset_block = """  assets:
+    - assets/images/
+    - assets/audio/
+"""
+              if "  uses-material-design: true\n" in content:
+                  content = content.replace(
+                      "  uses-material-design: true\n",
+                      "  uses-material-design: true\n" + asset_block,
+                  )
+              else:
+                  content += "\nflutter:\n" + asset_block
+
+          pubspec_path.write_text(content, encoding="utf-8")
+          EOF
 
       - name: Enable Internet permission in AndroidManifest.xml
         run: |
