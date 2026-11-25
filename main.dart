@@ -166,7 +166,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   late final AnimationController _natureAnimCtrl;
   late final AnimationController _pageTurnCtrl;
 
-  // 0: الرئيسية، 1: الأناشيد، 2: القصص، 3: الألعاب، 4: التفسير، 5: التلاوة
   int _screenIndex = 0;
 
   int _selectedSongIndex = -1;
