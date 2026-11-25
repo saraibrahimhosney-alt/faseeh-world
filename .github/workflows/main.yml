@@ -1,92 +1,41 @@
 name: Build Faseeh World Android APK
-
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [main, master]
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-
-      - name: Prepare structure and copy your real audio & images
+      - name: Prepare assets and pubspec
         run: |
           flutter create . --platforms=android --project-name faseeh_world
           mkdir -p lib assets/images assets/audio
-          if [ -f "main.dart" ]; then
-            cp main.dart lib/main.dart
-          fi
+          [ -f "main.dart" ] && cp main.dart lib/main.dart
           find . -maxdepth 2 -type f -name "*.png" ! -path "./android/*" ! -path "./assets/*" -exec cp {} assets/images/ \;
           find . -maxdepth 2 -type f -name "*.mp3" ! -path "./android/*" ! -path "./assets/*" -exec cp {} assets/audio/ \;
-          ls -la assets/images/ assets/audio/
-
-      - name: Configure pubspec.yaml dependencies and assets
-        run: |
-          python3 - << 'EOF'
+          python3 -c '
           from pathlib import Path
-
-          pubspec_path = Path("pubspec.yaml")
-          content = pubspec_path.read_text(encoding="utf-8")
-
-          deps = [
-              "  audioplayers: ^6.1.0",
-              "  video_player: ^2.9.2",
-              "  youtube_explode_dart: ^2.3.6",
-          ]
-          for dep in deps:
-              pkg_name = dep.strip().split(":")[0]
-              if pkg_name not in content:
-                  content = content.replace(
-                      "  cupertino_icons: ^1.0.8\n",
-                      "  cupertino_icons: ^1.0.8\n" + dep + "\n",
-                  )
-
-          if "assets/images/" not in content:
-              asset_block = """  assets:
-    - assets/images/
-    - assets/audio/
-"""
-              if "  uses-material-design: true\n" in content:
-                  content = content.replace(
-                      "  uses-material-design: true\n",
-                      "  uses-material-design: true\n" + asset_block,
-                  )
-              else:
-                  content += "\nflutter:\n" + asset_block
-
-          pubspec_path.write_text(content, encoding="utf-8")
-          EOF
-
-      - name: Enable Internet permission in AndroidManifest.xml
-        run: |
+          p = Path("pubspec.yaml")
+          t = p.read_text(encoding="utf-8")
+          t = t.replace("  cupertino_icons: ^1.0.8\n", "  cupertino_icons: ^1.0.8\n  audioplayers: ^6.1.0\n  video_player: ^2.9.2\n  youtube_explode_dart: ^2.3.6\n")
+          if "assets/images/" not in t:
+              t = t.replace("  uses-material-design: true\n", "  uses-material-design: true\n  assets:\n    - assets/images/\n    - assets/audio/\n")
+          p.write_text(t, encoding="utf-8")
+          '
           sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build Android APK
-        run: flutter build apk --debug
-
-      - name: Upload Faseeh World APK
-        uses: actions/upload-artifact@v4
+      - run: flutter pub get
+      - run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
         with:
           name: faseeh-world-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
