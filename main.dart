@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -157,8 +157,9 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   final AudioPlayer _ambiencePlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
 
-  YoutubePlayerController? _ytController;
+  WebViewController? _webController;
   String? _activeVideoId;
+  bool _hasActiveVideo = false;
 
   late final AnimationController _natureAnimCtrl;
   late final AnimationController _pageTurnCtrl;
@@ -921,7 +922,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   void dispose() {
     _natureAnimCtrl.dispose();
     _pageTurnCtrl.dispose();
-    _ytController?.dispose();
     _player.dispose();
     _ambiencePlayer.dispose();
     _sfxPlayer.dispose();
@@ -1052,36 +1052,46 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     });
   }
 
+  String _buildEmbedHtml(String videoId) {
+    final String embedUrl =
+        'https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&loop=1&playlist=$videoId';
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background-color: #000000; overflow: hidden; }
+    iframe { width: 100%; height: 100%; border: 0; }
+  </style>
+</head>
+<body>
+  <iframe
+    src="$embedUrl"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowfullscreen>
+  </iframe>
+</body>
+</html>
+''';
+  }
+
   void _playDirectNativeVideo(String videoId) {
     _activeVideoId = videoId;
-    final YoutubePlayerController? existing = _ytController;
-    if (existing == null) {
-      final YoutubePlayerController ctrl = YoutubePlayerController(
-        initialVideoId: videoId,
-        flags: const YoutubePlayerFlags(
-          autoPlay: true,
-          mute: false,
-          hideControls: false,
-          controlsVisibleAtStart: false,
-          disableDragSeek: false,
-          enableCaption: false,
-          hideThumbnail: true,
-        ),
-      );
-      ctrl.addListener(() {
-        if (!mounted) return;
-        if (ctrl.value.playerState == PlayerState.ended && _activeVideoId != null) {
-          ctrl.seekTo(Duration.zero);
-          ctrl.play();
-        }
-      });
-      setState(() {
-        _ytController = ctrl;
-      });
-    } else {
-      existing.load(videoId);
-      existing.play();
-    }
+    final WebViewController ctrl = _webController ??
+        (WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setBackgroundColor(const Color(0xFF000000)));
+    _webController = ctrl;
+    ctrl.loadHtmlString(_buildEmbedHtml(videoId));
+    setState(() {
+      _hasActiveVideo = true;
+    });
+  }
+
+  void _pauseVideoIfAny() {
+    _webController?.loadRequest(Uri.parse('about:blank'));
   }
 
   Future<void> _toggleStopPlay() async {
@@ -1103,8 +1113,8 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   }
 
   Widget _buildNativeVideoPlayerBox({required Color borderColor, required VoidCallback onRetry}) {
-    final YoutubePlayerController? ctrl = _ytController;
-    if (ctrl == null) {
+    final WebViewController? ctrl = _webController;
+    if (!_hasActiveVideo || ctrl == null) {
       return Center(
         child: FilledButton.icon(
           onPressed: onRetry,
@@ -1115,19 +1125,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     }
     return Stack(
       children: [
-        YoutubePlayer(
-          controller: ctrl,
-          showVideoProgressIndicator: true,
-          progressIndicatorColor: borderColor,
-          topActions: const [],
-          bottomActions: const [
-            SizedBox(width: 8),
-            PlayPauseButton(),
-            SizedBox(width: 8),
-            ProgressBar(isExpanded: true),
-            SizedBox(width: 8),
-          ],
-        ),
+        WebViewWidget(controller: ctrl),
         Positioned(
           top: 8,
           left: 8,
@@ -1199,10 +1197,11 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                 onPressed: () async {
                   await _player.stop();
                   await _stopNatureAmbience();
-                  _ytController?.pause();
+                  _pauseVideoIfAny();
                   setState(() {
                     _isPlaying = false;
                     _isVideoExpanded = false;
+                    _hasActiveVideo = false;
                     _selectedSongIndex = -1;
                     _selectedBookIndex = -1;
                     _isStoryQuizMode = false;
@@ -1232,9 +1231,10 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                   } else {
                     await _player.stop();
                     await _stopNatureAmbience();
-                    _ytController?.pause();
+                    _pauseVideoIfAny();
                     setState(() {
                       _isPlaying = false;
+                      _hasActiveVideo = false;
                       _screenIndex = 0;
                     });
                   }
