@@ -23,11 +23,11 @@ jobs:
           [ -f "main.dart" ] && cp main.dart lib/main.dart
           find . -maxdepth 2 -type f -name "*.png" ! -path "./android/*" ! -path "./assets/*" -exec cp {} assets/images/ \;
           find . -maxdepth 2 -type f -name "*.mp3" ! -path "./android/*" ! -path "./assets/*" -exec cp {} assets/audio/ \;
+          flutter pub add audioplayers webview_flutter
           python3 -c '
           from pathlib import Path
           p = Path("pubspec.yaml")
           t = p.read_text(encoding="utf-8")
-          t = t.replace("  cupertino_icons: ^1.0.8\n", "  cupertino_icons: ^1.0.8\n  audioplayers: ^6.1.0\n  webview_flutter: ^4.10.0\n")
           if "assets/images/" not in t:
               t = t.replace("  uses-material-design: true\n", "  uses-material-design: true\n  assets:\n    - assets/images/\n    - assets/audio/\n")
           p.write_text(t, encoding="utf-8")
