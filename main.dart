@@ -2,8 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:video_player/video_player.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -157,11 +156,9 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   final AudioPlayer _player = AudioPlayer();
   final AudioPlayer _ambiencePlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
-  final YoutubeExplode _yt = YoutubeExplode();
 
-  VideoPlayerController? _videoController;
-  bool _isVideoLoading = false;
-  String? _videoError;
+  YoutubePlayerController? _ytController;
+  String? _activeVideoId;
 
   late final AnimationController _natureAnimCtrl;
   late final AnimationController _pageTurnCtrl;
@@ -924,8 +921,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   void dispose() {
     _natureAnimCtrl.dispose();
     _pageTurnCtrl.dispose();
-    _videoController?.dispose();
-    _yt.close();
+    _ytController?.dispose();
     _player.dispose();
     _ambiencePlayer.dispose();
     _sfxPlayer.dispose();
@@ -1056,32 +1052,35 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     });
   }
 
-  Future<void> _playDirectNativeVideo(String videoId) async {
-    setState(() {
-      _isVideoLoading = true;
-      _videoError = null;
-    });
-    await _videoController?.dispose();
-    _videoController = null;
-    try {
-      final StreamManifest manifest = await _yt.videos.streamsClient.getManifest(videoId);
-      final MuxedStreamInfo streamInfo = manifest.muxed.withHighestBitrate();
-      final VideoPlayerController ctrl = VideoPlayerController.networkUrl(streamInfo.url);
-      await ctrl.initialize();
-      await ctrl.play();
-      if (mounted) {
-        setState(() {
-          _videoController = ctrl;
-          _isVideoLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isVideoLoading = false;
-          _videoError = 'تعذر تحميل الفيديو حالياً. تأكدي من الاتصال بالإنترنت أو صلاحية المقطع.';
-        });
-      }
+  void _playDirectNativeVideo(String videoId) {
+    _activeVideoId = videoId;
+    final YoutubePlayerController? existing = _ytController;
+    if (existing == null) {
+      final YoutubePlayerController ctrl = YoutubePlayerController(
+        initialVideoId: videoId,
+        flags: const YoutubePlayerFlags(
+          autoPlay: true,
+          mute: false,
+          hideControls: false,
+          controlsVisibleAtStart: false,
+          disableDragSeek: false,
+          enableCaption: false,
+          hideThumbnail: true,
+        ),
+      );
+      ctrl.addListener(() {
+        if (!mounted) return;
+        if (ctrl.value.playerState == PlayerState.ended && _activeVideoId != null) {
+          ctrl.seekTo(Duration.zero);
+          ctrl.play();
+        }
+      });
+      setState(() {
+        _ytController = ctrl;
+      });
+    } else {
+      existing.load(videoId);
+      existing.play();
     }
   }
 
@@ -1104,35 +1103,31 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   }
 
   Widget _buildNativeVideoPlayerBox({required Color borderColor, required VoidCallback onRetry}) {
-    if (_isVideoLoading) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(strokeWidth: 5, color: Colors.white),
-            SizedBox(height: 12),
-            Text('جَارِي تَجْهِيزُ الفِيدْيُو الآمِنِ...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-          ],
-        ),
-      );
-    }
-    if (_videoError != null || _videoController == null || !_videoController!.value.isInitialized) {
+    final YoutubePlayerController? ctrl = _ytController;
+    if (ctrl == null) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_videoError ?? 'اضْغَطْ لِتَشْغِيلِ الفِيدْيُو', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-            const SizedBox(height: 10),
-            FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded), label: const Text('إِعَادَةُ المُحَاوَلَةِ')),
-          ],
+        child: FilledButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.play_arrow_rounded),
+          label: const Text('تَشْغِيلُ الفِيدْيُو'),
         ),
       );
     }
-    final VideoPlayerController ctrl = _videoController!;
     return Stack(
-      alignment: Alignment.bottomCenter,
       children: [
-        Center(child: AspectRatio(aspectRatio: ctrl.value.aspectRatio, child: VideoPlayer(ctrl))),
+        YoutubePlayer(
+          controller: ctrl,
+          showVideoProgressIndicator: true,
+          progressIndicatorColor: borderColor,
+          topActions: const [],
+          bottomActions: const [
+            SizedBox(width: 8),
+            PlayPauseButton(),
+            SizedBox(width: 8),
+            ProgressBar(isExpanded: true),
+            SizedBox(width: 8),
+          ],
+        ),
         Positioned(
           top: 8,
           left: 8,
@@ -1154,26 +1149,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                 ),
               ),
             ),
-          ),
-        ),
-        Container(
-          color: Colors.black54,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Row(
-            children: [
-              IconButton(
-                color: Colors.white,
-                icon: Icon(ctrl.value.isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded, size: 32),
-                onPressed: () => setState(() => ctrl.value.isPlaying ? ctrl.pause() : ctrl.play()),
-              ),
-              Expanded(
-                child: VideoProgressIndicator(
-                  ctrl,
-                  allowScrubbing: true,
-                  colors: VideoProgressColors(playedColor: borderColor, bufferedColor: Colors.white54, backgroundColor: Colors.white24),
-                ),
-              ),
-            ],
           ),
         ),
       ],
@@ -1224,7 +1199,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                 onPressed: () async {
                   await _player.stop();
                   await _stopNatureAmbience();
-                  await _videoController?.pause();
+                  _ytController?.pause();
                   setState(() {
                     _isPlaying = false;
                     _isVideoExpanded = false;
@@ -1257,7 +1232,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                   } else {
                     await _player.stop();
                     await _stopNatureAmbience();
-                    await _videoController?.pause();
+                    _ytController?.pause();
                     setState(() {
                       _isPlaying = false;
                       _screenIndex = 0;
@@ -1328,6 +1303,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         onSelect: (int idx) {
           setState(() {
             _selectedTafsirIndex = idx;
+            _isVideoExpanded = true;
             _stars += 3;
             _owlBubble = 'تُشَاهِدُ الآنَ تَفْسِيرَ: ${_tafsirVideos[idx].arabicTitle}';
           });
@@ -1344,6 +1320,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         onSelect: (int idx) {
           setState(() {
             _selectedRecitationIndex = idx;
+            _isVideoExpanded = true;
             _stars += 3;
             _owlBubble = 'تَسْتَمِعُ الآنَ إِلَى تِلَاوَةِ: ${_recitationVideos[idx].arabicTitle}';
           });
@@ -1430,9 +1407,9 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                 final VideoSurahItem first = _tafsirVideos[_selectedTafsirIndex];
                 setState(() {
                   _isPlaying = false;
-                  _isVideoExpanded = false;
+                  _isVideoExpanded = true;
                   _screenIndex = 4;
-                  _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ بِاللُّغَةِ الإِنْجِلِيزِيَّةِ! اخْتَرِ السُّورَةَ!';
+                  _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ! تُشَاهِدُ الآنَ: ${first.arabicTitle}';
                   _stars += 5;
                 });
                 _playDirectNativeVideo(first.videoId);
@@ -1451,9 +1428,9 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                 final VideoSurahItem first = _recitationVideos[_selectedRecitationIndex];
                 setState(() {
                   _isPlaying = false;
-                  _isVideoExpanded = false;
+                  _isVideoExpanded = true;
                   _screenIndex = 5;
-                  _owlBubble = 'تِلَاوَةُ القُرْآنِ الكَرِيمِ! اخْتَرِ السُّورَةَ مِنَ القَائِمَةِ!';
+                  _owlBubble = 'تِلَاوَةُ القُرْآنِ الكَرِيمِ! تَسْتَمِعُ الآنَ إِلَى: ${first.arabicTitle}';
                   _stars += 5;
                 });
                 _playDirectNativeVideo(first.videoId);
