@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -130,19 +133,13 @@ class QuizItem {
   });
 }
 
-class VideoSurahItem {
-  final String arabicTitle;
-  final String subtitle;
+class VideoEpisodeItem {
+  final String title;
   final String videoId;
-  final bool isPlaylist;
-  final Color color;
 
-  const VideoSurahItem({
-    required this.arabicTitle,
-    required this.subtitle,
+  const VideoEpisodeItem({
+    required this.title,
     required this.videoId,
-    this.isPlaylist = false,
-    required this.color,
   });
 }
 
@@ -155,13 +152,23 @@ class FaseehHomeScreen extends StatefulWidget {
 
 class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     with TickerProviderStateMixin {
+  // ضعي هنا معرّف قائمة التفسير الكامل (34 حرفاً تبدأ بـ PL) أو الصقيه من داخل التطبيق عبر زر القفل
+  String _tafsirPlaylistId = 'PLdddiW8jFqWs';
+  String _recitationPlaylistId = 'PLAlCUgIGlphRU9Qc1IbmubwpYzyckh_ol';
+
+  final Map<String, List<VideoEpisodeItem>> _playlistCache = {};
+  List<VideoEpisodeItem> _tafsirEpisodes = [];
+  List<VideoEpisodeItem> _recitationEpisodes = [];
+  bool _isLoadingPlaylist = false;
+  String? _playlistLoadError;
+
   final AudioPlayer _player = AudioPlayer();
   final AudioPlayer _ambiencePlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
 
   WebViewController? _webController;
   bool _hasActiveVideo = false;
-  bool _useNoCookieDomain = true;
+  bool _isVideoPlaying = false;
 
   late final AnimationController _natureAnimCtrl;
   late final AnimationController _pageTurnCtrl;
@@ -186,26 +193,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   String _owlBubble = 'أَهْلاً بِكَ فِي عَالَمِ فَصِيحٍ! اخْتَرْ أَيَّ أَيْقُونَةٍ دَائِرِيَّةٍ!';
   bool _owlBounce = false;
   double _storyFontSize = 19.5;
-
-  final List<VideoSurahItem> _tafsirVideos = const [
-    VideoSurahItem(
-      arabicTitle: 'قَائِمَةُ تَفْسِيرِ القُرْآنِ الكَرِيمِ',
-      subtitle: 'Tafsir Playlist • قائمة التشغيل',
-      videoId: 'PLdddiW8jFqWs',
-      isPlaylist: true,
-      color: Color(0xFF059669),
-    ),
-  ];
-
-  final List<VideoSurahItem> _recitationVideos = const [
-    VideoSurahItem(
-      arabicTitle: 'قَائِمَةُ تِلَاوَةِ القُرْآنِ الكَرِيمِ',
-      subtitle: 'تِلَاوَةٌ خَاشِعَةٌ لِلْأَطْفَالِ • قائمة التشغيل',
-      videoId: 'PLAlCUgIGlphRU9Qc1IbmubwpYzyckh_ol',
-      isPlaylist: true,
-      color: Color(0xFF0284C7),
-    ),
-  ];
 
   final List<SongItem> _songs = const [
     SongItem(
@@ -932,6 +919,441 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     super.dispose();
   }
 
+  String _extractPlaylistId(String rawInput) {
+    final String trimmed = rawInput.trim();
+    final Uri? uri = Uri.tryParse(trimmed);
+    if (uri != null && uri.queryParameters.containsKey('list')) {
+      return uri.queryParameters['list']!.trim();
+    }
+    final RegExp listMatch = RegExp(r'[?&]list=([a-zA-Z0-9_-]+)');
+    final Match? m = listMatch.firstMatch(trimmed);
+    if (m != null && m.groupCount >= 1) {
+      return m.group(1)!;
+    }
+    return trimmed;
+  }
+
+  Future<List<VideoEpisodeItem>> _fetchFullPlaylistFromYouTube(String rawPlaylistId) async {
+    final String playlistId = _extractPlaylistId(rawPlaylistId);
+    if (_playlistCache.containsKey(playlistId) && _playlistCache[playlistId]!.isNotEmpty) {
+      return _playlistCache[playlistId]!;
+    }
+
+    final List<VideoEpisodeItem> collected = [];
+    final Set<String> seenIds = {};
+
+    // 1) الجلب من صفحة قائمة التشغيل الكاملة (يدعم أكثر من 15 فيديو ويحافظ على الترتيب)
+    try {
+      final HttpClient client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+      final HttpClientRequest req = await client.getUrl(
+        Uri.parse('https://www.youtube.com/playlist?list=$playlistId'),
+      );
+      req.headers.set(
+        HttpHeaders.userAgentHeader,
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      );
+      req.headers.set(HttpHeaders.acceptLanguageHeader, 'ar,en;q=0.9');
+      final HttpClientResponse res = await req.close();
+      if (res.statusCode == 200) {
+        final String html = await res.transform(utf8.decoder).join();
+        final RegExp dataRegex = RegExp(r'var ytInitialData\s*=\s*(\{.*?\});\s*</script>', dotAll: true);
+        final Match? match = dataRegex.firstMatch(html);
+        if (match != null && match.groupCount >= 1) {
+          final dynamic jsonRoot = jsonDecode(match.group(1)!);
+          _walkJsonForPlaylistItems(jsonRoot, collected, seenIds);
+        }
+      }
+      client.close(force: true);
+    } catch (_) {}
+
+    // 2) مسار احتياطي عبر خلاصة XML الرسمية لقوائم التشغيل
+    if (collected.isEmpty) {
+      try {
+        final HttpClient client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+        final HttpClientRequest req = await client.getUrl(
+          Uri.parse('https://www.youtube.com/feeds/videos.xml?playlist_id=$playlistId'),
+        );
+        final HttpClientResponse res = await req.close();
+        if (res.statusCode == 200) {
+          final String xml = await res.transform(utf8.decoder).join();
+          final RegExp entryRegex = RegExp(r'<entry>(.*?)</entry>', dotAll: true);
+          for (final Match entryMatch in entryRegex.allMatches(xml)) {
+            final String block = entryMatch.group(1) ?? '';
+            final Match? idMatch = RegExp(r'<yt:videoId>([^<]+)</yt:videoId>').firstMatch(block);
+            final Match? titleMatch = RegExp(r'<title>([^<]+)</title>').firstMatch(block);
+            if (idMatch != null && titleMatch != null) {
+              final String vid = idMatch.group(1)!.trim();
+              final String rawTitle = _decodeHtmlEntities(titleMatch.group(1)!.trim());
+              if (vid.isNotEmpty && !seenIds.contains(vid)) {
+                seenIds.add(vid);
+                collected.add(VideoEpisodeItem(title: rawTitle, videoId: vid));
+              }
+            }
+          }
+        }
+        client.close(force: true);
+      } catch (_) {}
+    }
+
+    if (collected.isNotEmpty) {
+      _playlistCache[playlistId] = collected;
+    }
+    return collected;
+  }
+
+  void _walkJsonForPlaylistItems(
+    dynamic node,
+    List<VideoEpisodeItem> out,
+    Set<String> seenIds,
+  ) {
+    if (node is Map<String, dynamic>) {
+      if (node.containsKey('playlistVideoRenderer')) {
+        final dynamic renderer = node['playlistVideoRenderer'];
+        if (renderer is Map<String, dynamic>) {
+          final String? vid = renderer['videoId'] as String?;
+          String title = '';
+          final dynamic titleObj = renderer['title'];
+          if (titleObj is Map<String, dynamic>) {
+            if (titleObj['simpleText'] is String) {
+              title = titleObj['simpleText'] as String;
+            } else if (titleObj['runs'] is List && (titleObj['runs'] as List).isNotEmpty) {
+              title = (titleObj['runs'] as List)
+                  .map((dynamic r) => (r is Map && r['text'] != null) ? r['text'].toString() : '')
+                  .join();
+            }
+          }
+          if (vid != null && vid.isNotEmpty && title.isNotEmpty && !seenIds.contains(vid)) {
+            seenIds.add(vid);
+            out.add(VideoEpisodeItem(title: title.trim(), videoId: vid.trim()));
+          }
+        }
+      }
+      for (final dynamic value in node.values) {
+        _walkJsonForPlaylistItems(value, out, seenIds);
+      }
+    } else if (node is List) {
+      for (final dynamic item in node) {
+        _walkJsonForPlaylistItems(item, out, seenIds);
+      }
+    }
+  }
+
+  String _decodeHtmlEntities(String text) {
+    return text
+        .replaceAll('&amp;', '&')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>');
+  }
+
+  Future<void> _openPlaylistSection({required bool isTafsir}) async {
+    await _player.stop();
+    await _stopNatureAmbience();
+    _pauseVideoIfAny();
+
+    final String targetPlaylistId = isTafsir ? _tafsirPlaylistId : _recitationPlaylistId;
+    setState(() {
+      _isPlaying = false;
+      _isVideoExpanded = false;
+      _hasActiveVideo = false;
+      _isLoadingPlaylist = true;
+      _playlistLoadError = null;
+      _screenIndex = isTafsir ? 4 : 5;
+      _owlBubble = isTafsir
+          ? 'جَارِي تَحْمِيلُ قَائِمَةِ تَفْسِيرِ القُرْآنِ الكَرِيمِ...'
+          : 'جَارِي تَحْمِيلُ قَائِمَةِ تِلَاوَةِ القُرْآنِ الكَرِيمِ...';
+    });
+
+    final List<VideoEpisodeItem> episodes = await _fetchFullPlaylistFromYouTube(targetPlaylistId);
+    if (!mounted) return;
+
+    if (episodes.isEmpty) {
+      setState(() {
+        _isLoadingPlaylist = false;
+        _playlistLoadError = isTafsir
+            ? 'مُعَرِّفُ قَائِمَةِ التَّفْسِيرِ الحَالِيُّ ($targetPlaylistId) غَيْرُ مُكْتَمِلٍ أَوْ خَاصٌّ. اضْغَطْ عَلَى زِرِّ القُفْلِ (🔒) أَعْلَى القَائِمَةِ اليُسْرَى لِلَصْقِ رَابِطِ القَائِمَةِ الكَامِلِ.'
+            : 'تَعَذَّرَ جَلْبُ حَلَقَاتِ التِّلَاوَةِ. تَأَكَّدْ مِنَ الاتِّصَالِ بِالإِنْتَرْنِتِ ثُمَّ اضْغَطْ إِعَادَةُ المُحَاوَلَةِ.';
+        _owlBubble = '⚠️ اضْغَطْ عَلَى القُفْلِ (🔒) لِتَحْدِيثِ رَابِطِ القَائِمَةِ!';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingPlaylist = false;
+      _playlistLoadError = null;
+      if (isTafsir) {
+        _tafsirEpisodes = episodes;
+        _selectedTafsirIndex = _selectedTafsirIndex.clamp(0, episodes.length - 1);
+      } else {
+        _recitationEpisodes = episodes;
+        _selectedRecitationIndex = _selectedRecitationIndex.clamp(0, episodes.length - 1);
+      }
+      _stars += 5;
+    });
+
+    final int idx = isTafsir ? _selectedTafsirIndex : _selectedRecitationIndex;
+    _playSingleLockedVideo(episodes[idx]);
+  }
+
+  String _buildChildSafeYouTubeHtml(String videoId) {
+    return '''
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+    #player { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    #shield { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 9999; background: transparent; }
+  </style>
+</head>
+<body>
+  <div id="player"></div>
+  <div id="shield"></div>
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    var ytPlayer;
+    function onYouTubeIframeAPIReady() {
+      ytPlayer = new YT.Player('player', {
+        videoId: '$videoId',
+        host: 'https://www.youtube-nocookie.com',
+        playerVars: {
+          autoplay: 1,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          iv_load_policy: 3,
+          cc_load_policy: 0,
+          origin: 'https://faseehworld.app'
+        },
+        events: {
+          onReady: function(e) {
+            e.target.playVideo();
+            if (window.FaseehBridge) window.FaseehBridge.postMessage('READY');
+          },
+          onStateChange: function(e) {
+            if (!window.FaseehBridge) return;
+            if (e.data === 1) window.FaseehBridge.postMessage('PLAYING');
+            if (e.data === 2) window.FaseehBridge.postMessage('PAUSED');
+            if (e.data === 0) window.FaseehBridge.postMessage('ENDED');
+          },
+          onError: function(e) {
+            if (window.FaseehBridge) window.FaseehBridge.postMessage('ERROR_' + e.data);
+          }
+        }
+      });
+    }
+    function togglePlayPause() {
+      if (!ytPlayer || !ytPlayer.getPlayerState) return;
+      var st = ytPlayer.getPlayerState();
+      if (st === 1) { ytPlayer.pauseVideo(); } else { ytPlayer.playVideo(); }
+    }
+    function seekBy(sec) {
+      if (!ytPlayer || !ytPlayer.getCurrentTime) return;
+      var cur = ytPlayer.getCurrentTime() || 0;
+      ytPlayer.seekTo(Math.max(0, cur + sec), true);
+    }
+  </script>
+</body>
+</html>
+''';
+  }
+
+  void _playSingleLockedVideo(VideoEpisodeItem episode) {
+    if (_webController == null) {
+      final WebViewController ctrl = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(const Color(0xFF000000))
+        ..setUserAgent(
+          'Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+        )
+        ..addJavaScriptChannel(
+          'FaseehBridge',
+          onMessageReceived: (JavaScriptMessage msg) {
+            if (!mounted) return;
+            final String m = msg.message;
+            if (m == 'PLAYING' || m == 'READY') {
+              setState(() => _isVideoPlaying = true);
+            } else if (m == 'PAUSED') {
+              setState(() => _isVideoPlaying = false);
+            } else if (m == 'ENDED') {
+              setState(() {
+                _isVideoPlaying = false;
+                _stars += 5;
+              });
+              _playNextEpisodeInCurrentSection();
+            }
+          },
+        )
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onNavigationRequest: (NavigationRequest req) {
+              final String u = req.url;
+              if (u.startsWith('https://faseehworld.app') ||
+                  u.startsWith('https://www.youtube-nocookie.com/embed/') ||
+                  u.startsWith('https://www.youtube.com/embed/') ||
+                  u == 'about:blank') {
+                return NavigationDecision.navigate;
+              }
+              // منع فتح تطبيق يوتيوب أو أي رابط خارجي للطفل نهائياً
+              return NavigationDecision.prevent;
+            },
+          ),
+        );
+      _webController = ctrl;
+    }
+
+    _webController!.loadHtmlString(
+      _buildChildSafeYouTubeHtml(episode.videoId),
+      baseUrl: 'https://faseehworld.app/',
+    );
+
+    setState(() {
+      _hasActiveVideo = true;
+      _isVideoPlaying = true;
+      _owlBubble = 'تُشَاهِدُ الآنَ: ${episode.title}';
+    });
+  }
+
+  void _playNextEpisodeInCurrentSection() {
+    if (_screenIndex == 4 && _tafsirEpisodes.isNotEmpty) {
+      final int next = (_selectedTafsirIndex + 1) % _tafsirEpisodes.length;
+      setState(() => _selectedTafsirIndex = next);
+      _playSingleLockedVideo(_tafsirEpisodes[next]);
+    } else if (_screenIndex == 5 && _recitationEpisodes.isNotEmpty) {
+      final int next = (_selectedRecitationIndex + 1) % _recitationEpisodes.length;
+      setState(() => _selectedRecitationIndex = next);
+      _playSingleLockedVideo(_recitationEpisodes[next]);
+    }
+  }
+
+  void _playPreviousEpisodeInCurrentSection() {
+    if (_screenIndex == 4 && _tafsirEpisodes.isNotEmpty) {
+      final int prev = (_selectedTafsirIndex - 1 + _tafsirEpisodes.length) % _tafsirEpisodes.length;
+      setState(() => _selectedTafsirIndex = prev);
+      _playSingleLockedVideo(_tafsirEpisodes[prev]);
+    } else if (_screenIndex == 5 && _recitationEpisodes.isNotEmpty) {
+      final int prev = (_selectedRecitationIndex - 1 + _recitationEpisodes.length) % _recitationEpisodes.length;
+      setState(() => _selectedRecitationIndex = prev);
+      _playSingleLockedVideo(_recitationEpisodes[prev]);
+    }
+  }
+
+  Future<void> _showTeacherPlaylistDialog({required bool isTafsir}) async {
+    final TextEditingController pinCtrl = TextEditingController();
+    final TextEditingController urlCtrl = TextEditingController(
+      text: isTafsir ? _tafsirPlaylistId : _recitationPlaylistId,
+    );
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) {
+        String? errorMsg;
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                title: Text(
+                  isTafsir
+                      ? '🔒 إِعْدَادَاتُ المُعَلِّمِ: قَائِمَةُ التَّفْسِيرِ'
+                      : '🔒 إِعْدَادَاتُ المُعَلِّمِ: قَائِمَةُ التِّلَاوَةِ',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'لِحِمَايَةِ الطِّفْلِ: أَجِبْ عَنِ السُّؤَالِ الحِسَابِيِّ ( ٧ + ٥ = ؟ )',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0284C7)),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: pinCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: 'اكتب الرقم 12 هنا',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'الصق رابط قائمة التشغيل الكامل من يوتيوب أو معرّفها (PL...):',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: urlCtrl,
+                        textDirection: TextDirection.ltr,
+                        decoration: InputDecoration(
+                          hintText: 'https://www.youtube.com/playlist?list=PL...',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                      if (errorMsg != null) ...[
+                        const SizedBox(height: 8),
+                        Text(errorMsg!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('إِلْغَاءٌ', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      if (pinCtrl.text.trim() != '12') {
+                        setDialogState(() => errorMsg = 'الإجابة الحسابية غير صحيحة (اكتب 12)');
+                        return;
+                      }
+                      final String extracted = _extractPlaylistId(urlCtrl.text);
+                      if (extracted.isEmpty) {
+                        setDialogState(() => errorMsg = 'يرجى إدخال رابط أو معرّف قائمة التشغيل');
+                        return;
+                      }
+                      setState(() {
+                        if (isTafsir) {
+                          _tafsirPlaylistId = extracted;
+                          _selectedTafsirIndex = 0;
+                        } else {
+                          _recitationPlaylistId = extracted;
+                          _selectedRecitationIndex = 0;
+                        }
+                        _playlistCache.remove(extracted);
+                      });
+                      Navigator.of(ctx).pop();
+                      _openPlaylistSection(isTafsir: isTafsir);
+                    },
+                    child: const Text('حِفْظٌ وَتَحْمِيلُ القَائِمَةِ', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _pauseVideoIfAny() {
+    _webController?.loadRequest(Uri.parse('about:blank'));
+    _isVideoPlaying = false;
+  }
+
   Uint8List _generatePaperFlipWav() {
     const int sampleRate = 22050;
     final int numSamples = (sampleRate * 0.22).toInt();
@@ -1056,59 +1478,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     });
   }
 
-  String _buildEmbedHtml(VideoSurahItem item) {
-    final String host = _useNoCookieDomain
-        ? 'https://www.youtube-nocookie.com'
-        : 'https://www.youtube.com';
-    final String embedUrl = item.isPlaylist
-        ? '$host/embed/videoseries?list=${item.videoId}&autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1&origin=https%3A%2F%2Ffaseehworld.app'
-        : '$host/embed/${item.videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1&loop=1&playlist=${item.videoId}&origin=https%3A%2F%2Ffaseehworld.app';
-    return '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="referrer" content="strict-origin-when-cross-origin">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; background-color: #000000; overflow: hidden; }
-    iframe { width: 100%; height: 100%; border: 0; }
-  </style>
-</head>
-<body>
-  <iframe
-    src="$embedUrl"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-    referrerpolicy="strict-origin-when-cross-origin"
-    allowfullscreen>
-  </iframe>
-</body>
-</html>
-''';
-  }
-
-  void _playDirectNativeVideo(VideoSurahItem item) {
-    final WebViewController ctrl = _webController ??
-        (WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setUserAgent(
-            'Mozilla/5.0 (Linux; Android 13; Tablet) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-          )
-          ..setBackgroundColor(const Color(0xFF000000)));
-    _webController = ctrl;
-    ctrl.loadHtmlString(
-      _buildEmbedHtml(item),
-      baseUrl: 'https://faseehworld.app',
-    );
-    setState(() {
-      _hasActiveVideo = true;
-    });
-  }
-
-  void _pauseVideoIfAny() {
-    _webController?.loadRequest(Uri.parse('about:blank'));
-  }
-
   Future<void> _toggleStopPlay() async {
     if (_screenIndex == 2 && _selectedBookIndex != -1) {
       setState(() => _natureSoundEnabled = !_natureSoundEnabled);
@@ -1125,79 +1494,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     } else {
       await _playAudioTrack(_currentTrack, _owlBubble);
     }
-  }
-
-  Widget _buildNativeVideoPlayerBox({
-    required Color borderColor,
-    required VideoSurahItem activeItem,
-    required VoidCallback onRetry,
-  }) {
-    final WebViewController? ctrl = _webController;
-    if (!_hasActiveVideo || ctrl == null) {
-      return Center(
-        child: FilledButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.play_arrow_rounded),
-          label: const Text('تَشْغِيلُ الفِيدْيُو'),
-        ),
-      );
-    }
-    return Stack(
-      children: [
-        WebViewWidget(controller: ctrl),
-        Positioned(
-          top: 8,
-          left: 8,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Material(
-                color: Colors.black.withAlpha(185),
-                borderRadius: BorderRadius.circular(20),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () {
-                    setState(() => _useNoCookieDomain = !_useNoCookieDomain);
-                    _playDirectNativeVideo(activeItem);
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.swap_horiz_rounded, color: Color(0xFFFBBF24), size: 20),
-                        SizedBox(width: 4),
-                        Text('تَبْدِيلُ المُشَغِّلِ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Material(
-                color: Colors.black.withAlpha(185),
-                borderRadius: BorderRadius.circular(20),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () => setState(() => _isVideoExpanded = !_isVideoExpanded),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(_isVideoExpanded ? Icons.view_sidebar_rounded : Icons.fullscreen_rounded, color: Colors.white, size: 20),
-                        const SizedBox(width: 5),
-                        Text(_isVideoExpanded ? 'إِظْهَارُ القَائِمَةِ' : 'تَكْبِيرُ الشَّاشَةِ ⛶', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
   }
 
   @override
@@ -1311,7 +1607,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
             ),
           ),
           const SizedBox(width: 8),
-          if (!isReadingOpenStory)
+          if (!isReadingOpenStory && _screenIndex != 4 && _screenIndex != 5)
             IconButton.filled(
               style: IconButton.styleFrom(backgroundColor: _isPlaying ? const Color(0xFFEF4444) : const Color(0xFF10B981), padding: const EdgeInsets.all(9)),
               onPressed: _toggleStopPlay,
@@ -1342,38 +1638,297 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     if (_screenIndex == 2) return _selectedBookIndex == -1 ? _buildBooksCircleHub() : _buildInteractiveFlipBookViewer(_books[_selectedBookIndex]);
     if (_screenIndex == 3) return _selectedQuizIndex == -1 ? _buildGamesCircleHub() : _buildSingleGameStage(_quizzes[_selectedQuizIndex]);
     if (_screenIndex == 4) {
-      return _buildVideoWithSidebarStage(
-        sectionTitle: '📖 تَفْسِيرُ القُرْآنِ الكَرِيمِ',
-        headerColor: const Color(0xFF059669),
-        items: _tafsirVideos,
+      return _buildLockedVideoWithLeftPlaylistStage(
+        isTafsir: true,
+        sectionTitle: '📖 قَائِمَةُ التَّفْسِيرِ',
+        accentColor: const Color(0xFF059669),
+        episodes: _tafsirEpisodes,
         selectedIndex: _selectedTafsirIndex,
         onSelect: (int idx) {
           setState(() {
             _selectedTafsirIndex = idx;
             _stars += 3;
-            _owlBubble = 'تُشَاهِدُ الآنَ: ${_tafsirVideos[idx].arabicTitle}';
           });
-          _playDirectNativeVideo(_tafsirVideos[idx]);
+          _playSingleLockedVideo(_tafsirEpisodes[idx]);
         },
       );
     }
     if (_screenIndex == 5) {
-      return _buildVideoWithSidebarStage(
-        sectionTitle: '🎧 تِلَاوَةُ القُرْآنِ الكَرِيمِ',
-        headerColor: const Color(0xFF0284C7),
-        items: _recitationVideos,
+      return _buildLockedVideoWithLeftPlaylistStage(
+        isTafsir: false,
+        sectionTitle: '🎧 قَائِمَةُ التِّلَاوَةِ',
+        accentColor: const Color(0xFF0284C7),
+        episodes: _recitationEpisodes,
         selectedIndex: _selectedRecitationIndex,
         onSelect: (int idx) {
           setState(() {
             _selectedRecitationIndex = idx;
             _stars += 3;
-            _owlBubble = 'تَسْتَمِعُ الآنَ إِلَى: ${_recitationVideos[idx].arabicTitle}';
           });
-          _playDirectNativeVideo(_recitationVideos[idx]);
+          _playSingleLockedVideo(_recitationEpisodes[idx]);
         },
       );
     }
     return _buildMainLobby();
+  }
+
+  Widget _buildLockedVideoWithLeftPlaylistStage({
+    required bool isTafsir,
+    required String sectionTitle,
+    required Color accentColor,
+    required List<VideoEpisodeItem> episodes,
+    required int selectedIndex,
+    required ValueChanged<int> onSelect,
+  }) {
+    final VideoEpisodeItem? activeEpisode =
+        (episodes.isNotEmpty && selectedIndex >= 0 && selectedIndex < episodes.length)
+            ? episodes[selectedIndex]
+            : null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+      child: Row(
+        children: [
+          // اليمين (في اتجاه RTL): شاشة الفيديو المغلقة ضد فتح يوتيوب + أزرار التحكم الخاصة بالتطبيق
+          Expanded(
+            flex: 68,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(248),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: accentColor, width: 4),
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        color: Colors.black,
+                        child: _isLoadingPlaylist
+                            ? const Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    CircularProgressIndicator(color: Color(0xFFFBBF24)),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      'جَارِي جَلْبُ حَلَقَاتِ قَائِمَةِ التَّشْغِيلِ...',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : _playlistLoadError != null
+                                ? Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.playlist_play_rounded, color: Color(0xFFFBBF24), size: 52),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            _playlistLoadError!,
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15, height: 1.6),
+                                          ),
+                                          const SizedBox(height: 14),
+                                          Wrap(
+                                            spacing: 10,
+                                            children: [
+                                              FilledButton.icon(
+                                                style: FilledButton.styleFrom(backgroundColor: accentColor),
+                                                onPressed: () => _openPlaylistSection(isTafsir: isTafsir),
+                                                icon: const Icon(Icons.refresh_rounded),
+                                                label: const Text('إِعَادَةُ المُحَاوَلَةِ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                              ),
+                                              FilledButton.icon(
+                                                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
+                                                onPressed: () => _showTeacherPlaylistDialog(isTafsir: isTafsir),
+                                                icon: const Icon(Icons.lock_open_rounded),
+                                                label: const Text('إِدْخَالُ رَابِطِ القَائِمَةِ 🔒', style: TextStyle(fontWeight: FontWeight.bold)),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : (_hasActiveVideo && _webController != null)
+                                    ? WebViewWidget(controller: _webController!)
+                                    : const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  // شريط تحكم آمن للطفل أسفل الفيديو (يمنع الحاجة لأي أزرار من يوتيوب)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          activeEpisode?.title ?? sectionTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold, color: accentColor),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton.filledTonal(
+                        tooltip: 'السَّابِقُ',
+                        onPressed: episodes.length > 1 ? _playPreviousEpisodeInCurrentSection : null,
+                        icon: const Icon(Icons.skip_next_rounded, size: 22),
+                      ),
+                      const SizedBox(width: 4),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _isVideoPlaying ? const Color(0xFFEF4444) : accentColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        ),
+                        onPressed: _hasActiveVideo
+                            ? () {
+                                _webController?.runJavaScript('togglePlayPause();');
+                                setState(() => _isVideoPlaying = !_isVideoPlaying);
+                              }
+                            : null,
+                        icon: Icon(_isVideoPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 22),
+                        label: Text(
+                          _isVideoPlaying ? 'إِيقَافٌ مُؤَقَّتٌ' : 'تَشْغِيلٌ',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton.filledTonal(
+                        tooltip: 'التَّالِي',
+                        onPressed: episodes.length > 1 ? _playNextEpisodeInCurrentSection : null,
+                        icon: const Icon(Icons.skip_previous_rounded, size: 22),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton.filledTonal(
+                        tooltip: _isVideoExpanded ? 'إِظْهَارُ القَائِمَةِ' : 'تَكْبِيرُ الشَّاشَةِ',
+                        onPressed: () => setState(() => _isVideoExpanded = !_isVideoExpanded),
+                        icon: Icon(_isVideoExpanded ? Icons.view_sidebar_rounded : Icons.fullscreen_rounded, size: 22),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // اليسار (في اتجاه RTL): قائمة التشغيل الكاملة بجميع حلقاتها على يسار الشاشة
+          if (!_isVideoExpanded) const SizedBox(width: 10),
+          if (!_isVideoExpanded)
+            Expanded(
+              flex: 32,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(244),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: accentColor, width: 3.5),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '$sectionTitle (${episodes.length})',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: accentColor),
+                          ),
+                        ),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _showTeacherPlaylistDialog(isTafsir: isTafsir),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: accentColor.withAlpha(28),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(Icons.lock_outline_rounded, size: 18, color: accentColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 12),
+                    Expanded(
+                      child: _isLoadingPlaylist
+                          ? const Center(child: CircularProgressIndicator())
+                          : episodes.isEmpty
+                              ? Center(
+                                  child: TextButton.icon(
+                                    onPressed: () => _showTeacherPlaylistDialog(isTafsir: isTafsir),
+                                    icon: const Icon(Icons.edit_note_rounded),
+                                    label: const Text('إِضَافَةُ رَابِطِ القَائِمَةِ 🔒', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: episodes.length,
+                                  itemBuilder: (BuildContext context, int index) {
+                                    final VideoEpisodeItem ep = episodes[index];
+                                    final bool isSelected = index == selectedIndex;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 7),
+                                      child: Material(
+                                        color: isSelected ? accentColor : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(14),
+                                          onTap: () => onSelect(index),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  alignment: Alignment.center,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: isSelected ? Colors.white : accentColor.withAlpha(35),
+                                                  ),
+                                                  child: isSelected
+                                                      ? Icon(Icons.play_arrow_rounded, size: 18, color: accentColor)
+                                                      : Text(
+                                                          '${index + 1}',
+                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: accentColor),
+                                                        ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    ep.title,
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 13.5,
+                                                      height: 1.35,
+                                                      color: isSelected ? Colors.white : const Color(0xFF0F172A),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildMainLobby() {
@@ -1442,23 +1997,11 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
             const SizedBox(width: 14),
             _buildCircularIconPortal(
               label: '🕌 تَفْسِيرُ القُرْآنِ',
-              subLabel: 'Tafsir in English',
+              subLabel: 'Tafsir Playlist',
               imagePath: 'assets/images/card_stories.png',
               ringColor: const Color(0xFF059669),
               badgeBg: const Color(0xFFECFDF5),
-              onTap: () async {
-                await _player.stop();
-                await _stopNatureAmbience();
-                final VideoSurahItem first = _tafsirVideos[_selectedTafsirIndex];
-                setState(() {
-                  _isPlaying = false;
-                  _isVideoExpanded = false;
-                  _screenIndex = 4;
-                  _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ! تُشَاهِدُ الآنَ: ${first.arabicTitle}';
-                  _stars += 5;
-                });
-                _playDirectNativeVideo(first);
-              },
+              onTap: () => _openPlaylistSection(isTafsir: true),
             ),
             const SizedBox(width: 14),
             _buildCircularIconPortal(
@@ -1467,19 +2010,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
               imagePath: 'assets/images/card_songs.png',
               ringColor: const Color(0xFF0284C7),
               badgeBg: const Color(0xFFF0F9FF),
-              onTap: () async {
-                await _player.stop();
-                await _stopNatureAmbience();
-                final VideoSurahItem first = _recitationVideos[_selectedRecitationIndex];
-                setState(() {
-                  _isPlaying = false;
-                  _isVideoExpanded = false;
-                  _screenIndex = 5;
-                  _owlBubble = 'تِلَاوَةُ القُرْآنِ الكَرِيمِ! تَسْتَمِعُ الآنَ إِلَى: ${first.arabicTitle}';
-                  _stars += 5;
-                });
-                _playDirectNativeVideo(first);
-              },
+              onTap: () => _openPlaylistSection(isTafsir: false),
             ),
           ],
         ),
@@ -2223,122 +2754,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildVideoWithSidebarStage({
-    required String sectionTitle,
-    required Color headerColor,
-    required List<VideoSurahItem> items,
-    required int selectedIndex,
-    required ValueChanged<int> onSelect,
-  }) {
-    final VideoSurahItem activeItem = items[selectedIndex];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 72,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.white.withAlpha(245), borderRadius: BorderRadius.circular(24), border: Border.all(color: activeItem.color, width: 4)),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        color: Colors.black,
-                        child: _buildNativeVideoPlayerBox(
-                          borderColor: activeItem.color,
-                          activeItem: activeItem,
-                          onRetry: () => _playDirectNativeVideo(activeItem),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(activeItem.arabicTitle, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: activeItem.color)),
-                      Text(activeItem.subtitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (!_isVideoExpanded) const SizedBox(width: 10),
-          if (!_isVideoExpanded)
-            Expanded(
-              flex: 28,
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.white.withAlpha(238), borderRadius: BorderRadius.circular(24), border: Border.all(color: headerColor, width: 3.5)),
-                child: Column(
-                  children: [
-                    Text(sectionTitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: headerColor)),
-                    const Divider(height: 12),
-                    Expanded(
-                      child: ListView(
-                        children: [
-                          ...List.generate(items.length, (int index) {
-                            final VideoSurahItem surah = items[index];
-                            final bool isSelected = index == selectedIndex;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Material(
-                                color: isSelected ? surah.color : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(14),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(14),
-                                  onTap: () => onSelect(index),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                    child: Row(
-                                      children: [
-                                        Icon(isSelected ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded, color: isSelected ? Colors.white : surah.color, size: 26),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(surah.arabicTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: isSelected ? Colors.white : const Color(0xFF0F172A))),
-                                              Text(surah.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: isSelected ? const Color(0xFFFEF08A) : const Color(0xFF475569))),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF0F9FF),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: headerColor.withAlpha(90), width: 1.5),
-                            ),
-                            child: const Text(
-                              '💡 لِاخْتِيَارِ أَيِّ سُورَةٍ مِنَ القَائِمَةِ، اضْغَطْ عَلَى أَيْقُونَةِ القَائِمَةِ (≡) أَوْ زِرِّ التَّالِي (⏭) دَاخِلَ شَاشَةِ الفِيدْيُو.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12.5, height: 1.5, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
