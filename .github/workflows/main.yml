@@ -27,7 +27,7 @@ jobs:
           from pathlib import Path
           p = Path("pubspec.yaml")
           t = p.read_text(encoding="utf-8")
-          t = t.replace("  cupertino_icons: ^1.0.8\n", "  cupertino_icons: ^1.0.8\n  audioplayers: ^6.1.0\n  video_player: ^2.9.2\n  youtube_explode_dart: ^2.3.6\n")
+          t = t.replace("  cupertino_icons: ^1.0.8\n", "  cupertino_icons: ^1.0.8\n  audioplayers: ^6.1.0\n  youtube_player_flutter: ^9.1.1\n")
           if "assets/images/" not in t:
               t = t.replace("  uses-material-design: true\n", "  uses-material-design: true\n  assets:\n    - assets/images/\n    - assets/audio/\n")
           p.write_text(t, encoding="utf-8")
