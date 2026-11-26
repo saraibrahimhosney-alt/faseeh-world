@@ -134,12 +134,14 @@ class VideoSurahItem {
   final String arabicTitle;
   final String subtitle;
   final String videoId;
+  final bool isPlaylist;
   final Color color;
 
   const VideoSurahItem({
     required this.arabicTitle,
     required this.subtitle,
     required this.videoId,
+    this.isPlaylist = false,
     required this.color,
   });
 }
@@ -185,21 +187,23 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   double _storyFontSize = 19.5;
 
   final List<VideoSurahItem> _tafsirVideos = const [
-    VideoSurahItem(arabicTitle: 'سُورَةُ الفَاتِحَةِ', subtitle: 'Surah Al-Fatihah • Tafsir', videoId: 'n3fX2c8Z7mU', color: Color(0xFF059669)),
-    VideoSurahItem(arabicTitle: 'سُورَةُ الإِخْلَاصِ', subtitle: 'Surah Al-Ikhlas • Tafsir', videoId: '1A7W9s8k2pY', color: Color(0xFF0284C7)),
-    VideoSurahItem(arabicTitle: 'سُورَةُ الفَلَقِ', subtitle: 'Surah Al-Falaq • Tafsir', videoId: '4R9x8m2nQ1w', color: Color(0xFF7C3AED)),
-    VideoSurahItem(arabicTitle: 'سُورَةُ النَّاسِ', subtitle: 'Surah An-Nas • Tafsir', videoId: '8K2m9p4xL5v', color: Color(0xFFD97706)),
-    VideoSurahItem(arabicTitle: 'سُورَةُ الكَوْثَرِ', subtitle: 'Surah Al-Kawthar • Tafsir', videoId: '3M7v2n9qR8t', color: Color(0xFFDB2777)),
-    VideoSurahItem(arabicTitle: 'سُورَةُ العَصْرِ', subtitle: 'Surah Al-Asr • Tafsir', videoId: '6P4w9k2mN7x', color: Color(0xFF0D9488)),
+    VideoSurahItem(
+      arabicTitle: 'قَائِمَةُ تَفْسِيرِ القُرْآنِ الكَرِيمِ',
+      subtitle: 'Tafsir Playlist • قائمة التشغيل',
+      videoId: 'PLdddiW8jFqWs',
+      isPlaylist: true,
+      color: Color(0xFF059669),
+    ),
   ];
 
   final List<VideoSurahItem> _recitationVideos = const [
-    VideoSurahItem(arabicTitle: 'سُورَةُ الفَاتِحَةِ', subtitle: 'تِلَاوَةٌ خَاشِعَةٌ لِلْأَطْفَالِ', videoId: 'ZYaZ6IgFOx0', color: Color(0xFF0284C7)),
-    VideoSurahItem(arabicTitle: 'سُورَةُ الإِخْلَاصِ', subtitle: 'تِلَاوَةٌ وَتَكْرَارٌ لِلْحِفْظِ', videoId: 'w5jG2x9mL4q', color: Color(0xFF059669)),
-    VideoSurahItem(arabicTitle: 'سُورَةُ الفَلَقِ', subtitle: 'تِلَاوَةٌ وَتَكْرَارٌ لِلْحِفْظِ', videoId: '9L4n7k2pR5w', color: Color(0xFF7C3AED)),
-    VideoSurahItem(arabicTitle: 'سُورَةُ النَّاسِ', subtitle: 'تِلَاوَةٌ وَتَكْرَارٌ لِلْحِفْظِ', videoId: '2T8m5v9xQ3y', color: Color(0xFFD97706)),
-    VideoSurahItem(arabicTitle: 'سُورَةُ الفِيلِ', subtitle: 'تِلَاوَةٌ وَتَكْرَارٌ لِلْحِفْظِ', videoId: '7H3k9p2mW6z', color: Color(0xFFDB2777)),
-    VideoSurahItem(arabicTitle: 'سُورَةُ قُرَيْشٍ', subtitle: 'تِلَاوَةٌ وَتَكْرَارٌ لِلْحِفْظِ', videoId: '5N8r2m7vK4p', color: Color(0xFF0D9488)),
+    VideoSurahItem(
+      arabicTitle: 'قَائِمَةُ تِلَاوَةِ القُرْآنِ الكَرِيمِ',
+      subtitle: 'تِلَاوَةٌ خَاشِعَةٌ لِلْأَطْفَالِ • قائمة التشغيل',
+      videoId: 'PLAlCUgIGlphRU9Qc1IbmubwpYzyckh_ol',
+      isPlaylist: true,
+      color: Color(0xFF0284C7),
+    ),
   ];
 
   final List<SongItem> _songs = const [
@@ -1051,9 +1055,10 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     });
   }
 
-  String _buildEmbedHtml(String videoId) {
-    final String embedUrl =
-        'https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&loop=1&playlist=$videoId';
+  String _buildEmbedHtml(VideoSurahItem item) {
+    final String embedUrl = item.isPlaylist
+        ? 'https://www.youtube.com/embed/videoseries?list=${item.videoId}&autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1'
+        : 'https://www.youtube.com/embed/${item.videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1&loop=1&playlist=${item.videoId}';
     return '''
 <!DOCTYPE html>
 <html>
@@ -1068,7 +1073,8 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
 <body>
   <iframe
     src="$embedUrl"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
     allowfullscreen>
   </iframe>
 </body>
@@ -1076,15 +1082,15 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
 ''';
   }
 
-  void _playDirectNativeVideo(String videoId) {
+  void _playDirectNativeVideo(VideoSurahItem item) {
     final WebViewController ctrl = _webController ??
         (WebViewController()
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
           ..setBackgroundColor(const Color(0xFF000000)));
     _webController = ctrl;
     ctrl.loadHtmlString(
-      _buildEmbedHtml(videoId),
-      baseUrl: 'https://www.youtube-nocookie.com',
+      _buildEmbedHtml(item),
+      baseUrl: 'https://www.youtube.com',
     );
     setState(() {
       _hasActiveVideo = true;
@@ -1143,7 +1149,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                   children: [
                     Icon(_isVideoExpanded ? Icons.view_sidebar_rounded : Icons.fullscreen_rounded, color: Colors.white, size: 22),
                     const SizedBox(width: 6),
-                    Text(_isVideoExpanded ? 'إِظْهَارُ قَائِمَةِ السُّوَرِ' : 'تَكْبِيرُ الشَّاشَةِ ⛶', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(_isVideoExpanded ? 'إِظْهَارُ القَائِمَةِ' : 'تَكْبِيرُ الشَّاشَةِ ⛶', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                   ],
                 ),
               ),
@@ -1304,28 +1310,26 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         onSelect: (int idx) {
           setState(() {
             _selectedTafsirIndex = idx;
-            _isVideoExpanded = true;
             _stars += 3;
-            _owlBubble = 'تُشَاهِدُ الآنَ تَفْسِيرَ: ${_tafsirVideos[idx].arabicTitle}';
+            _owlBubble = 'تُشَاهِدُ الآنَ: ${_tafsirVideos[idx].arabicTitle}';
           });
-          _playDirectNativeVideo(_tafsirVideos[idx].videoId);
+          _playDirectNativeVideo(_tafsirVideos[idx]);
         },
       );
     }
     if (_screenIndex == 5) {
       return _buildVideoWithSidebarStage(
-        sectionTitle: '🎧 سُوَرُ تِلَاوَةِ القُرْآنِ',
+        sectionTitle: '🎧 تِلَاوَةُ القُرْآنِ الكَرِيمِ',
         headerColor: const Color(0xFF0284C7),
         items: _recitationVideos,
         selectedIndex: _selectedRecitationIndex,
         onSelect: (int idx) {
           setState(() {
             _selectedRecitationIndex = idx;
-            _isVideoExpanded = true;
             _stars += 3;
-            _owlBubble = 'تَسْتَمِعُ الآنَ إِلَى تِلَاوَةِ: ${_recitationVideos[idx].arabicTitle}';
+            _owlBubble = 'تَسْتَمِعُ الآنَ إِلَى: ${_recitationVideos[idx].arabicTitle}';
           });
-          _playDirectNativeVideo(_recitationVideos[idx].videoId);
+          _playDirectNativeVideo(_recitationVideos[idx]);
         },
       );
     }
@@ -1408,12 +1412,12 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                 final VideoSurahItem first = _tafsirVideos[_selectedTafsirIndex];
                 setState(() {
                   _isPlaying = false;
-                  _isVideoExpanded = true;
+                  _isVideoExpanded = false;
                   _screenIndex = 4;
                   _owlBubble = 'تَفْسِيرُ القُرْآنِ الكَرِيمِ! تُشَاهِدُ الآنَ: ${first.arabicTitle}';
                   _stars += 5;
                 });
-                _playDirectNativeVideo(first.videoId);
+                _playDirectNativeVideo(first);
               },
             ),
             const SizedBox(width: 14),
@@ -1429,12 +1433,12 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                 final VideoSurahItem first = _recitationVideos[_selectedRecitationIndex];
                 setState(() {
                   _isPlaying = false;
-                  _isVideoExpanded = true;
+                  _isVideoExpanded = false;
                   _screenIndex = 5;
                   _owlBubble = 'تِلَاوَةُ القُرْآنِ الكَرِيمِ! تَسْتَمِعُ الآنَ إِلَى: ${first.arabicTitle}';
                   _stars += 5;
                 });
-                _playDirectNativeVideo(first.videoId);
+                _playDirectNativeVideo(first);
               },
             ),
           ],
@@ -2207,7 +2211,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
                         color: Colors.black,
-                        child: _buildNativeVideoPlayerBox(borderColor: activeItem.color, onRetry: () => _playDirectNativeVideo(activeItem.videoId)),
+                        child: _buildNativeVideoPlayerBox(borderColor: activeItem.color, onRetry: () => _playDirectNativeVideo(activeItem)),
                       ),
                     ),
                   ),
@@ -2228,48 +2232,62 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
             Expanded(
               flex: 28,
               child: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(color: Colors.white.withAlpha(238), borderRadius: BorderRadius.circular(24), border: Border.all(color: headerColor, width: 3.5)),
                 child: Column(
                   children: [
                     Text(sectionTitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: headerColor)),
-                    const Divider(height: 10),
+                    const Divider(height: 12),
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: items.length,
-                        itemBuilder: (_, int index) {
-                          final VideoSurahItem surah = items[index];
-                          final bool isSelected = index == selectedIndex;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 5),
-                            child: Material(
-                              color: isSelected ? surah.color : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(14),
-                              child: InkWell(
+                      child: ListView(
+                        children: [
+                          ...List.generate(items.length, (int index) {
+                            final VideoSurahItem surah = items[index];
+                            final bool isSelected = index == selectedIndex;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Material(
+                                color: isSelected ? surah.color : Colors.grey.shade100,
                                 borderRadius: BorderRadius.circular(14),
-                                onTap: () => onSelect(index),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                  child: Row(
-                                    children: [
-                                      Icon(isSelected ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded, color: isSelected ? Colors.white : surah.color, size: 24),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(surah.arabicTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelected ? Colors.white : const Color(0xFF0F172A))),
-                                            Text(surah.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isSelected ? const Color(0xFFFEF08A) : const Color(0xFF475569))),
-                                          ],
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () => onSelect(index),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                    child: Row(
+                                      children: [
+                                        Icon(isSelected ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded, color: isSelected ? Colors.white : surah.color, size: 26),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(surah.arabicTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: isSelected ? Colors.white : const Color(0xFF0F172A))),
+                                              Text(surah.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: isSelected ? const Color(0xFFFEF08A) : const Color(0xFF475569))),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
+                            );
+                          }),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0F9FF),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: headerColor.withAlpha(90), width: 1.5),
                             ),
-                          );
-                        },
+                            child: const Text(
+                              '💡 لِاخْتِيَارِ أَيِّ سُورَةٍ مِنَ القَائِمَةِ، اضْغَطْ عَلَى أَيْقُونَةِ القَائِمَةِ (≡) أَوْ زِرِّ التَّالِي (⏭) دَاخِلَ شَاشَةِ الفِيدْيُو.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12.5, height: 1.5, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
