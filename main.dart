@@ -158,7 +158,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   final AudioPlayer _sfxPlayer = AudioPlayer();
 
   WebViewController? _webController;
-  String? _activeVideoId;
   bool _hasActiveVideo = false;
 
   late final AnimationController _natureAnimCtrl;
@@ -1078,13 +1077,15 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   }
 
   void _playDirectNativeVideo(String videoId) {
-    _activeVideoId = videoId;
     final WebViewController ctrl = _webController ??
         (WebViewController()
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
           ..setBackgroundColor(const Color(0xFF000000)));
     _webController = ctrl;
-    ctrl.loadHtmlString(_buildEmbedHtml(videoId));
+    ctrl.loadHtmlString(
+      _buildEmbedHtml(videoId),
+      baseUrl: 'https://www.youtube-nocookie.com',
+    );
     setState(() {
       _hasActiveVideo = true;
     });
