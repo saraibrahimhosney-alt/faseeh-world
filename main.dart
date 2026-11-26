@@ -161,6 +161,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
 
   WebViewController? _webController;
   bool _hasActiveVideo = false;
+  bool _useNoCookieDomain = true;
 
   late final AnimationController _natureAnimCtrl;
   late final AnimationController _pageTurnCtrl;
@@ -1056,14 +1057,18 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   }
 
   String _buildEmbedHtml(VideoSurahItem item) {
+    final String host = _useNoCookieDomain
+        ? 'https://www.youtube-nocookie.com'
+        : 'https://www.youtube.com';
     final String embedUrl = item.isPlaylist
-        ? 'https://www.youtube.com/embed/videoseries?list=${item.videoId}&autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1'
-        : 'https://www.youtube.com/embed/${item.videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1&loop=1&playlist=${item.videoId}';
+        ? '$host/embed/videoseries?list=${item.videoId}&autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1&origin=https%3A%2F%2Ffaseehworld.app'
+        : '$host/embed/${item.videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1&loop=1&playlist=${item.videoId}&origin=https%3A%2F%2Ffaseehworld.app';
     return '''
 <!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; background-color: #000000; overflow: hidden; }
@@ -1086,11 +1091,14 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     final WebViewController ctrl = _webController ??
         (WebViewController()
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setUserAgent(
+            'Mozilla/5.0 (Linux; Android 13; Tablet) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+          )
           ..setBackgroundColor(const Color(0xFF000000)));
     _webController = ctrl;
     ctrl.loadHtmlString(
       _buildEmbedHtml(item),
-      baseUrl: 'https://www.youtube.com',
+      baseUrl: 'https://faseehworld.app',
     );
     setState(() {
       _hasActiveVideo = true;
@@ -1119,7 +1127,11 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     }
   }
 
-  Widget _buildNativeVideoPlayerBox({required Color borderColor, required VoidCallback onRetry}) {
+  Widget _buildNativeVideoPlayerBox({
+    required Color borderColor,
+    required VideoSurahItem activeItem,
+    required VoidCallback onRetry,
+  }) {
     final WebViewController? ctrl = _webController;
     if (!_hasActiveVideo || ctrl == null) {
       return Center(
@@ -1136,24 +1148,52 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         Positioned(
           top: 8,
           left: 8,
-          child: Material(
-            color: Colors.black.withAlpha(170),
-            borderRadius: BorderRadius.circular(20),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () => setState(() => _isVideoExpanded = !_isVideoExpanded),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_isVideoExpanded ? Icons.view_sidebar_rounded : Icons.fullscreen_rounded, color: Colors.white, size: 22),
-                    const SizedBox(width: 6),
-                    Text(_isVideoExpanded ? 'إِظْهَارُ القَائِمَةِ' : 'تَكْبِيرُ الشَّاشَةِ ⛶', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                  ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Material(
+                color: Colors.black.withAlpha(185),
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    setState(() => _useNoCookieDomain = !_useNoCookieDomain);
+                    _playDirectNativeVideo(activeItem);
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.swap_horiz_rounded, color: Color(0xFFFBBF24), size: 20),
+                        SizedBox(width: 4),
+                        Text('تَبْدِيلُ المُشَغِّلِ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 6),
+              Material(
+                color: Colors.black.withAlpha(185),
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => setState(() => _isVideoExpanded = !_isVideoExpanded),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_isVideoExpanded ? Icons.view_sidebar_rounded : Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                        const SizedBox(width: 5),
+                        Text(_isVideoExpanded ? 'إِظْهَارُ القَائِمَةِ' : 'تَكْبِيرُ الشَّاشَةِ ⛶', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -2211,7 +2251,11 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
                         color: Colors.black,
-                        child: _buildNativeVideoPlayerBox(borderColor: activeItem.color, onRetry: () => _playDirectNativeVideo(activeItem)),
+                        child: _buildNativeVideoPlayerBox(
+                          borderColor: activeItem.color,
+                          activeItem: activeItem,
+                          onRetry: () => _playDirectNativeVideo(activeItem),
+                        ),
                       ),
                     ),
                   ),
