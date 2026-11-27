@@ -933,6 +933,66 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     return trimmed;
   }
 
+  String? _extractBalancedJsonObject(String source, String marker) {
+    int markerIdx = source.indexOf(marker);
+    if (markerIdx == -1) return null;
+    int braceStart = source.indexOf('{', markerIdx + marker.length);
+    if (braceStart == -1) return null;
+
+    int depth = 0;
+    bool inString = false;
+    bool escaped = false;
+
+    for (int i = braceStart; i < source.length; i++) {
+      final int ch = source.codeUnitAt(i);
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch == 92) {
+          escaped = true;
+        } else if (ch == 34) {
+          inString = false;
+        }
+      } else {
+        if (ch == 34) {
+          inString = true;
+        } else if (ch == 123) {
+          depth++;
+        } else if (ch == 125) {
+          depth--;
+          if (depth == 0) {
+            return source.substring(braceStart, i + 1);
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  Future<String?> _fetchYouTubePageHtml(String url) async {
+    final HttpClient client = HttpClient()..connectionTimeout = const Duration(seconds: 12);
+    try {
+      final HttpClientRequest req = await client.getUrl(Uri.parse(url));
+      req.headers.set(
+        HttpHeaders.userAgentHeader,
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      );
+      req.headers.set(HttpHeaders.acceptLanguageHeader, 'ar,en-US;q=0.9,en;q=0.8');
+      req.headers.set(
+        HttpHeaders.cookieHeader,
+        'CONSENT=YES+cb.20260101-01-p0.en+FX+111; SOCS=CAI; PREF=hl=ar&gl=EG',
+      );
+      final HttpClientResponse res = await req.close();
+      if (res.statusCode == 200) {
+        return await res.transform(utf8.decoder).join();
+      }
+    } catch (_) {
+    } finally {
+      client.close(force: true);
+    }
+    return null;
+  }
+
   Future<List<VideoEpisodeItem>> _fetchFullPlaylistFromYouTube(String rawPlaylistId) async {
     final String playlistId = _extractPlaylistId(rawPlaylistId);
     if (_playlistCache.containsKey(playlistId) && _playlistCache[playlistId]!.isNotEmpty) {
@@ -942,28 +1002,37 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     final List<VideoEpisodeItem> collected = [];
     final Set<String> seenIds = {};
 
-    try {
-      final HttpClient client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
-      final HttpClientRequest req = await client.getUrl(
-        Uri.parse('https://www.youtube.com/playlist?list=$playlistId'),
-      );
-      req.headers.set(
-        HttpHeaders.userAgentHeader,
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-      );
-      req.headers.set(HttpHeaders.acceptLanguageHeader, 'ar,en;q=0.9');
-      final HttpClientResponse res = await req.close();
-      if (res.statusCode == 200) {
-        final String html = await res.transform(utf8.decoder).join();
-        final RegExp dataRegex = RegExp(r'var ytInitialData\s*=\s*(\{.*?\});\s*</script>', dotAll: true);
-        final Match? match = dataRegex.firstMatch(html);
-        if (match != null && match.groupCount >= 1) {
-          final dynamic jsonRoot = jsonDecode(match.group(1)!);
+    final String? playlistHtml = await _fetchYouTubePageHtml(
+      'https://www.youtube.com/playlist?list=$playlistId',
+    );
+    if (playlistHtml != null) {
+      final String? rawJson =
+          _extractBalancedJsonObject(playlistHtml, 'ytInitialData =') ??
+              _extractBalancedJsonObject(playlistHtml, 'ytInitialData"] =');
+      if (rawJson != null) {
+        try {
+          final dynamic jsonRoot = jsonDecode(rawJson);
           _walkJsonForPlaylistItems(jsonRoot, collected, seenIds);
+        } catch (_) {}
+      }
+    }
+
+    if (collected.length <= 15) {
+      final String? watchHtml = await _fetchYouTubePageHtml(
+        'https://www.youtube.com/watch?list=$playlistId',
+      );
+      if (watchHtml != null) {
+        final String? rawJson =
+            _extractBalancedJsonObject(watchHtml, 'ytInitialData =') ??
+                _extractBalancedJsonObject(watchHtml, 'ytInitialData"] =');
+        if (rawJson != null) {
+          try {
+            final dynamic jsonRoot = jsonDecode(rawJson);
+            _walkJsonForPlaylistItems(jsonRoot, collected, seenIds);
+          } catch (_) {}
         }
       }
-      client.close(force: true);
-    } catch (_) {}
+    }
 
     if (collected.isEmpty) {
       try {
@@ -1005,25 +1074,24 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     Set<String> seenIds,
   ) {
     if (node is Map<String, dynamic>) {
-      if (node.containsKey('playlistVideoRenderer')) {
-        final dynamic renderer = node['playlistVideoRenderer'];
-        if (renderer is Map<String, dynamic>) {
-          final String? vid = renderer['videoId'] as String?;
-          String title = '';
-          final dynamic titleObj = renderer['title'];
-          if (titleObj is Map<String, dynamic>) {
-            if (titleObj['simpleText'] is String) {
-              title = titleObj['simpleText'] as String;
-            } else if (titleObj['runs'] is List && (titleObj['runs'] as List).isNotEmpty) {
-              title = (titleObj['runs'] as List)
-                  .map((dynamic r) => (r is Map && r['text'] != null) ? r['text'].toString() : '')
-                  .join();
-            }
+      final dynamic renderer =
+          node['playlistVideoRenderer'] ?? node['playlistPanelVideoRenderer'];
+      if (renderer is Map<String, dynamic>) {
+        final String? vid = renderer['videoId'] as String?;
+        String title = '';
+        final dynamic titleObj = renderer['title'];
+        if (titleObj is Map<String, dynamic>) {
+          if (titleObj['simpleText'] is String) {
+            title = titleObj['simpleText'] as String;
+          } else if (titleObj['runs'] is List && (titleObj['runs'] as List).isNotEmpty) {
+            title = (titleObj['runs'] as List)
+                .map((dynamic r) => (r is Map && r['text'] != null) ? r['text'].toString() : '')
+                .join();
           }
-          if (vid != null && vid.isNotEmpty && title.isNotEmpty && !seenIds.contains(vid)) {
-            seenIds.add(vid);
-            out.add(VideoEpisodeItem(title: title.trim(), videoId: vid.trim()));
-          }
+        }
+        if (vid != null && vid.isNotEmpty && title.isNotEmpty && !seenIds.contains(vid)) {
+          seenIds.add(vid);
+          out.add(VideoEpisodeItem(title: title.trim(), videoId: vid.trim()));
         }
       }
       for (final dynamic value in node.values) {
@@ -1104,32 +1172,32 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
-    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
-    #player { position: fixed; inset: 0; width: 100%; height: 100%; }
-    #topShield { position: fixed; top: 0; left: 0; right: 0; height: 68px; z-index: 9998; background: transparent; }
-    #bottomRightShield { position: fixed; bottom: 0; right: 0; width: 170px; height: 58px; z-index: 9998; background: transparent; }
+    html, body { width: 100%; height: 100%; background: #000000; overflow: hidden; }
+    #player { position: fixed; inset: 0; width: 100%; height: 100%; background: #000000; }
+    #topShield { position: fixed; top: 0; left: 0; right: 0; height: 62px; z-index: 9998; background: transparent; }
+    #bottomRightShield { position: fixed; bottom: 0; right: 0; width: 112px; height: 46px; z-index: 9998; background: transparent; }
     #tapOverlay {
       position: fixed;
-      inset: 0;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       z-index: 9999;
-      background: rgba(0, 0, 0, 0.42);
       display: none;
-      align-items: center;
-      justify-content: center;
       cursor: pointer;
     }
     #tapBtn {
-      background: #10B981;
+      background: rgba(16, 185, 129, 0.95);
       color: #ffffff;
-      border: 4px solid #ffffff;
+      border: 3px solid #ffffff;
       border-radius: 50px;
-      padding: 16px 32px;
-      font-size: 22px;
+      padding: 13px 26px;
+      font-size: 19px;
       font-weight: bold;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.65);
       display: flex;
       align-items: center;
       gap: 10px;
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -1138,14 +1206,14 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   <div id="topShield"></div>
   <div id="bottomRightShield"></div>
   <div id="tapOverlay" onclick="handleManualTap()">
-    <div id="tapBtn"><span>▶</span><span>اضْغَطْ هُنَا لِتَشْغِيلِ الفِيدْيُو</span></div>
+    <div id="tapBtn"><span>▶</span><span>تَشْغِيلُ الفِيدْيُو</span></div>
   </div>
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
     var ytPlayer;
     function showTapOverlay(visible) {
       var el = document.getElementById('tapOverlay');
-      if (el) el.style.display = visible ? 'flex' : 'none';
+      if (el) el.style.display = visible ? 'block' : 'none';
     }
     function handleManualTap() {
       if (ytPlayer && ytPlayer.playVideo) {
@@ -1160,7 +1228,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         host: 'https://www.youtube-nocookie.com',
         playerVars: {
           autoplay: 1,
-          controls: 0,
+          controls: 1,
           disablekb: 1,
           fs: 0,
           rel: 0,
@@ -1210,6 +1278,14 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         showTapOverlay(false);
       }
     }
+    function seekBySeconds(delta) {
+      if (!ytPlayer || !ytPlayer.getCurrentTime || !ytPlayer.seekTo) return;
+      var cur = ytPlayer.getCurrentTime() || 0;
+      var dur = ytPlayer.getDuration ? (ytPlayer.getDuration() || 0) : 0;
+      var target = Math.max(0, cur + delta);
+      if (dur > 0) target = Math.min(dur, target);
+      ytPlayer.seekTo(target, true);
+    }
   </script>
 </body>
 </html>
@@ -1229,7 +1305,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(const Color(0xFF000000))
         ..setUserAgent(
-          'Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          'Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         )
         ..addJavaScriptChannel(
           'FaseehBridge',
@@ -1561,14 +1637,27 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   @override
   Widget build(BuildContext context) {
     final bool isReadingOpenStory = _screenIndex == 2 && _selectedBookIndex != -1;
+    final bool isVideoStage = _screenIndex == 4 || _screenIndex == 5;
+
     return Scaffold(
+      backgroundColor: isVideoStage ? const Color(0xFF064E3B) : null,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          if (!isReadingOpenStory) ...[
+          if (!isReadingOpenStory && !isVideoStage) ...[
             Image.asset('assets/images/forest_bg.png', fit: BoxFit.cover),
             Container(color: Colors.black.withAlpha(35)),
           ],
+          if (isVideoStage)
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF064E3B), Color(0xFF0F172A)],
+                ),
+              ),
+            ),
           SafeArea(
             child: Column(
               children: [
@@ -1748,23 +1837,23 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
             : null;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+      padding: const EdgeInsets.fromLTRB(6, 2, 6, 6),
       child: Row(
         children: [
           Expanded(
             flex: 68,
             child: Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Colors.white.withAlpha(248),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: accentColor, width: 4),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: accentColor, width: 3.5),
               ),
               child: Column(
                 children: [
                   Expanded(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       child: Container(
                         color: Colors.black,
                         child: _isLoadingPlaylist
@@ -1775,7 +1864,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                                     CircularProgressIndicator(color: Color(0xFFFBBF24)),
                                     SizedBox(height: 12),
                                     Text(
-                                      'جَارِي جَلْبُ حَلَقَاتِ قَائِمَةِ التَّشْغِيلِ...',
+                                      'جَارِي جَلْبُ جَمِيعِ حَلَقَاتِ قَائِمَةِ التَّشْغِيلِ...',
                                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                                     ),
                                   ],
@@ -1831,20 +1920,27 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                           activeEpisode?.title ?? sectionTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold, color: accentColor),
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: accentColor),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      IconButton.filledTonal(
-                        tooltip: 'السَّابِقُ',
-                        onPressed: episodes.length > 1 ? _playPreviousEpisodeInCurrentSection : null,
-                        icon: const Icon(Icons.skip_next_rounded, size: 22),
-                      ),
                       const SizedBox(width: 4),
+                      IconButton.filledTonal(
+                        tooltip: 'الحَلْقَةُ السَّابِقَةُ',
+                        onPressed: episodes.length > 1 ? _playPreviousEpisodeInCurrentSection : null,
+                        icon: const Icon(Icons.skip_next_rounded, size: 21),
+                      ),
+                      IconButton.filledTonal(
+                        tooltip: 'تَأْخِيرُ ١٠ ثَوَانٍ',
+                        onPressed: _hasActiveVideo
+                            ? () => _webController?.runJavaScript('seekBySeconds(-10);')
+                            : null,
+                        icon: const Icon(Icons.replay_10_rounded, size: 21),
+                      ),
+                      const SizedBox(width: 2),
                       FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: _isVideoPlaying ? const Color(0xFFEF4444) : accentColor,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                         ),
                         onPressed: _hasActiveVideo
@@ -1853,23 +1949,29 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                                 setState(() => _isVideoPlaying = !_isVideoPlaying);
                               }
                             : null,
-                        icon: Icon(_isVideoPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 22),
+                        icon: Icon(_isVideoPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 21),
                         label: Text(
-                          _isVideoPlaying ? 'إِيقَافٌ مُؤَقَّتٌ' : 'تَشْغِيلٌ',
+                          _isVideoPlaying ? 'إِيقَافٌ' : 'تَشْغِيلٌ',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 2),
                       IconButton.filledTonal(
-                        tooltip: 'التَّالِي',
-                        onPressed: episodes.length > 1 ? _playNextEpisodeInCurrentSection : null,
-                        icon: const Icon(Icons.skip_previous_rounded, size: 22),
+                        tooltip: 'تَقْدِيمُ ١٠ ثَوَانٍ',
+                        onPressed: _hasActiveVideo
+                            ? () => _webController?.runJavaScript('seekBySeconds(10);')
+                            : null,
+                        icon: const Icon(Icons.forward_10_rounded, size: 21),
                       ),
-                      const SizedBox(width: 4),
+                      IconButton.filledTonal(
+                        tooltip: 'الحَلْقَةُ التَّالِيَةُ',
+                        onPressed: episodes.length > 1 ? _playNextEpisodeInCurrentSection : null,
+                        icon: const Icon(Icons.skip_previous_rounded, size: 21),
+                      ),
                       IconButton.filledTonal(
                         tooltip: _isVideoExpanded ? 'إِظْهَارُ القَائِمَةِ' : 'تَكْبِيرُ الشَّاشَةِ',
                         onPressed: () => setState(() => _isVideoExpanded = !_isVideoExpanded),
-                        icon: Icon(_isVideoExpanded ? Icons.view_sidebar_rounded : Icons.fullscreen_rounded, size: 22),
+                        icon: Icon(_isVideoExpanded ? Icons.view_sidebar_rounded : Icons.fullscreen_rounded, size: 21),
                       ),
                     ],
                   ),
@@ -1877,15 +1979,15 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
               ),
             ),
           ),
-          if (!_isVideoExpanded) const SizedBox(width: 10),
+          if (!_isVideoExpanded) const SizedBox(width: 8),
           if (!_isVideoExpanded)
             Expanded(
               flex: 32,
               child: Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(244),
-                  borderRadius: BorderRadius.circular(24),
+                  color: Colors.white.withAlpha(246),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: accentColor, width: 3.5),
                 ),
                 child: Column(
@@ -1914,7 +2016,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                         ),
                       ],
                     ),
-                    const Divider(height: 12),
+                    const Divider(height: 10),
                     Expanded(
                       child: _isLoadingPlaylist
                           ? const Center(child: CircularProgressIndicator())
