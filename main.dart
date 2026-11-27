@@ -110,27 +110,35 @@ class StoryBookItem {
   });
 }
 
-class QuizItem {
+class GameQuestion {
+  final String question;
+  final List<String> options;
+  final int correctIndex;
+
+  const GameQuestion({
+    required this.question,
+    required this.options,
+    required this.correctIndex,
+  });
+}
+
+class GameCategory {
   final String categoryTitle;
   final String englishTitle;
-  final String question;
   final String audioFile;
   final String emoji;
   final String imagePath;
   final Color color;
-  final List<String> options;
-  final int correctIndex;
+  final List<GameQuestion> questions;
 
-  const QuizItem({
+  const GameCategory({
     required this.categoryTitle,
     required this.englishTitle,
-    required this.question,
     required this.audioFile,
     required this.emoji,
     required this.imagePath,
     required this.color,
-    required this.options,
-    required this.correctIndex,
+    required this.questions,
   });
 }
 
@@ -180,7 +188,13 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   int _currentPageIndex = 0;
   bool _isStoryQuizMode = false;
   int? _storyQuizSelectedOption;
-  int _selectedQuizIndex = -1;
+
+  int _selectedGameIndex = -1;
+  int _currentGameQuestionIndex = 0;
+  int? _selectedGameOptionIndex;
+  int _gameCorrectCount = 0;
+  bool _currentQuestionScored = false;
+  bool _isGameCompleted = false;
 
   int _selectedTafsirIndex = 0;
   int _selectedRecitationIndex = 0;
@@ -869,10 +883,207 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     ),
   ];
 
-  final List<QuizItem> _quizzes = const [
-    QuizItem(categoryTitle: 'تَحَدِّي المُفْرَدَاتِ', englishTitle: 'Vocabulary Challenge', question: 'مَا مَعْنَى كَلِمَةِ «غَدِيرٌ»؟', audioFile: 'welcome.mp3', emoji: '💧', imagePath: 'assets/images/card_stories.png', color: Color(0xFF0284C7), options: ['نَهْرٌ صَغِيرٌ عَذْبٌ 💧', 'جَبَلٌ كَبِيرٌ ⛰️', 'رِيَاحٌ قَوِيَّةٌ 🌪️'], correctIndex: 0),
-    QuizItem(categoryTitle: 'تَحَدِّي الأَصْوَاتِ', englishTitle: 'Nature Sounds Game', question: 'مَا صَوْتُ أَوْرَاقِ الشَّجَرِ؟', audioFile: 'welcome.mp3', emoji: '🍃', imagePath: 'assets/images/card_songs.png', color: Color(0xFF059669), options: ['زَئِيرٌ 🦁', 'حَفِيفٌ 🍃', 'خَرِيرٌ 🌊'], correctIndex: 1),
-    QuizItem(categoryTitle: 'تَحَدِّي الفُصْحَى', englishTitle: 'Classical Arabic Quiz', question: 'أَيُّ جُمْلَةٍ بِالعَرَبِيَّةِ الفُصْحَى؟', audioFile: 'welcome.mp3', emoji: '🌟', imagePath: 'assets/images/owl_mascot.png', color: Color(0xFFF59E0B), options: ['الولد راح بدري', 'ذَهَبَ الطِّفْلُ مُبَكِّراً 🌟', 'أيمتى رح نلعب؟'], correctIndex: 1),
+  final List<GameCategory> _games = const [
+    GameCategory(
+      categoryTitle: 'تَحَدِّي المُفْرَدَاتِ',
+      englishTitle: 'Vocabulary (10 Qs)',
+      audioFile: 'welcome.mp3',
+      emoji: '💧',
+      imagePath: 'assets/images/card_stories.png',
+      color: Color(0xFF0284C7),
+      questions: [
+        GameQuestion(question: 'مَا مَعْنَى كَلِمَةِ «غَدِيرٌ»؟', options: ['نَهْرٌ صَغِيرٌ عَذْبٌ 💧', 'جَبَلٌ كَبِيرٌ ⛰️', 'رِيَاحٌ قَوِيَّةٌ 🌪️'], correctIndex: 0),
+        GameQuestion(question: 'مَا مَعْنَى كَلِمَةِ «بَاكِراً»؟', options: ['فِي اللَّيْلِ المُتَأَخِّرِ 🌙', 'فِي أَوَّلِ الصَّبَاحِ 🌅', 'عِنْدَ الغُرُوبِ 🌇'], correctIndex: 1),
+        GameQuestion(question: 'مَا مَعْنَى كَلِمَةِ «مَسْرُورٌ»؟', options: ['فَرِحٌ وَسَعِيدٌ 😊', 'غَاضِبٌ جِدّاً 😠', 'خَائِفٌ 😨'], correctIndex: 0),
+        GameQuestion(question: 'مَا مَعْنَى كَلِمَةِ «بُسْتَانٌ»؟', options: ['صَحْرَاءُ وَاسِعَةٌ 🏜️', 'بَحْرٌ عَمِيقٌ 🌊', 'حَدِيقَةٌ مَلِيئَةٌ بِالأَشْجَارِ 🌳'], correctIndex: 2),
+        GameQuestion(question: 'مَا مَعْنَى كَلِمَةِ «عَذْبٌ»؟', options: ['مَالِحٌ جِدّاً 🧂', 'طَيِّبٌ وَنَقِيٌّ 💧', 'سَاخِنٌ 🔥'], correctIndex: 1),
+        GameQuestion(question: 'مَا مَعْنَى كَلِمَةِ «يَشْدُو»؟', options: ['يُغَنِّي بِصَوْتٍ جَمِيلٍ 🐦', 'يَنَامُ بِعُمْقٍ 😴', 'يَبْكِي 😢'], correctIndex: 0),
+        GameQuestion(question: 'مَا مَعْنَى كَلِمَةِ «نَسِيمٌ»؟', options: ['عَاصِفَةٌ شَدِيدَةٌ 🌪️', 'مَطَرٌ غَزِيرٌ 🌧️', 'هَوَاءٌ لَطِيفٌ خَفِيفٌ 🍃'], correctIndex: 2),
+        GameQuestion(question: 'مَا مَعْنَى كَلِمَةِ «شُجَاعٌ»؟', options: ['جَبَانٌ يَخَافُ 😨', 'قَوِيٌّ لَا يَخَافُ 🦁', 'كَسُولٌ 😴'], correctIndex: 1),
+        GameQuestion(question: 'مَا مَعْنَى كَلِمَةِ «يَتَأَمَّلُ»؟', options: ['يَنْظُرُ وَيُفَكِّرُ بِهُدُوءٍ 🤔', 'يَجْرِي بِسُرْعَةٍ 🏃', 'يَصْرُخُ بِصَوْتٍ عَالٍ 📢'], correctIndex: 0),
+        GameQuestion(question: 'مَا مَعْنَى كَلِمَةِ «فَصِيحٌ»؟', options: ['قَلِيلُ الكَلَامِ 🤐', 'بَلِيغٌ وَاضِحُ اللِّسَانِ 🌟', 'سَرِيعُ الغَضَبِ 💢'], correctIndex: 1),
+      ],
+    ),
+    GameCategory(
+      categoryTitle: 'تَحَدِّي الأَضْدَادِ',
+      englishTitle: 'Antonyms (10 Qs)',
+      audioFile: 'welcome.mp3',
+      emoji: '🔄',
+      imagePath: 'assets/images/card_songs.png',
+      color: Color(0xFFEC4899),
+      questions: [
+        GameQuestion(question: 'مَا ضِدُّ كَلِمَةِ «كَبِيرٌ»؟', options: ['طَوِيلٌ 📏', 'صَغِيرٌ 🐜', 'عَرِيضٌ ↔️'], correctIndex: 1),
+        GameQuestion(question: 'مَا ضِدُّ كَلِمَةِ «نَشِيطٌ»؟', options: ['كَسُولٌ 😴', 'سَرِيعٌ ⚡', 'ذَكِيٌّ 🧠'], correctIndex: 0),
+        GameQuestion(question: 'مَا ضِدُّ كَلِمَةِ «سَعِيدٌ»؟', options: ['فَرِحٌ 😄', 'مُبْتَسِمٌ 😊', 'حَزِينٌ 😢'], correctIndex: 2),
+        GameQuestion(question: 'مَا ضِدُّ كَلِمَةِ «النُّورُ»؟', options: ['الظَّلَامُ 🌑', 'الشَّمْسُ ☀️', 'الضِّيَاءُ ✨'], correctIndex: 0),
+        GameQuestion(question: 'مَا ضِدُّ كَلِمَةِ «قَرِيبٌ»؟', options: ['مُجَاوِرٌ 🏠', 'بَعِيدٌ 🔭', 'أَمَامَ ➡️'], correctIndex: 1),
+        GameQuestion(question: 'مَا ضِدُّ كَلِمَةِ «سَرِيعٌ»؟', options: ['خَفِيفٌ 🪶', 'نَشِيطٌ 🏃', 'بَطِيءٌ 🐢'], correctIndex: 2),
+        GameQuestion(question: 'مَا ضِدُّ كَلِمَةِ «نَظِيفٌ»؟', options: ['مُتَّسِخٌ 🧹', 'جَمِيلٌ 🌸', 'لَامِعٌ ✨'], correctIndex: 0),
+        GameQuestion(question: 'مَا ضِدُّ كَلِمَةِ «حَارٌّ»؟', options: ['دَافِئٌ ☀️', 'بَارِدٌ ❄️', 'مُشْتَعِلٌ 🔥'], correctIndex: 1),
+        GameQuestion(question: 'مَا ضِدُّ كَلِمَةِ «صِدْقٌ»؟', options: ['أَمَانَةٌ 🤝', 'وَعْدٌ 📜', 'كَذِبٌ ❌'], correctIndex: 2),
+        GameQuestion(question: 'مَا ضِدُّ كَلِمَةِ «يَصْعَدُ»؟', options: ['يَنْزِلُ ⬇️', 'يَطِيرُ 🕊️', 'يَقْفِزُ 🦘'], correctIndex: 0),
+      ],
+    ),
+    GameCategory(
+      categoryTitle: 'المُفْرَدُ وَالجَمْعُ',
+      englishTitle: 'Singular & Plural (10 Qs)',
+      audioFile: 'welcome.mp3',
+      emoji: '📚',
+      imagePath: 'assets/images/owl_mascot.png',
+      color: Color(0xFF8B5CF6),
+      questions: [
+        GameQuestion(question: 'مَا جَمْعُ كَلِمَةِ «كِتَابٌ»؟', options: ['كُتُبٌ 📚', 'مَكْتَبَةٌ 🏛️', 'كَاتِبٌ ✍️'], correctIndex: 0),
+        GameQuestion(question: 'مَا جَمْعُ كَلِمَةِ «شَجَرَةٌ»؟', options: ['غَابَةٌ 🌲', 'وَرَقَةٌ 🍃', 'أَشْجَارٌ 🌳'], correctIndex: 2),
+        GameQuestion(question: 'مَا جَمْعُ كَلِمَةِ «عُصْفُورٌ»؟', options: ['عُشٌّ 🪺', 'عَصَافِيرُ 🐦', 'رِيشَةٌ 🪶'], correctIndex: 1),
+        GameQuestion(question: 'مَا جَمْعُ كَلِمَةِ «نَجْمٌ»؟', options: ['نُجُومٌ ⭐', 'سَمَاءٌ 🌌', 'قَمَرٌ 🌙'], correctIndex: 0),
+        GameQuestion(question: 'مَا جَمْعُ كَلِمَةِ «بَحْرٌ»؟', options: ['نَهْرٌ 💧', 'سَفِينَةٌ 🚢', 'بِحَارٌ 🌊'], correctIndex: 2),
+        GameQuestion(question: 'مَا مُفْرَدُ كَلِمَةِ «أَزْهَارٌ»؟', options: ['بُسْتَانٌ 🏡', 'زَهْرَةٌ 🌺', 'عِطْرٌ 🌸'], correctIndex: 1),
+        GameQuestion(question: 'مَا مُفْرَدُ كَلِمَةِ «أَصْدِقَاءُ»؟', options: ['صَدِيقٌ 🤝', 'أَخٌ 👦', 'جَارٌ 🏘️'], correctIndex: 0),
+        GameQuestion(question: 'مَا جَمْعُ كَلِمَةِ «قَلَمٌ»؟', options: ['دَفْتَرٌ 📓', 'حِبْرٌ 🖋️', 'أَقْلَامٌ ✏️'], correctIndex: 2),
+        GameQuestion(question: 'مَا جَمْعُ كَلِمَةِ «مَدْرَسَةٌ»؟', options: ['فَصْلٌ 🪑', 'مَدَارِسُ 🏫', 'مُعَلِّمٌ 👨‍🏫'], correctIndex: 1),
+        GameQuestion(question: 'مَا مُفْرَدُ كَلِمَةِ «أَقْمَارٌ»؟', options: ['قَمَرٌ 🌙', 'شَمْسٌ ☀️', 'كَوْكَبٌ 🪐'], correctIndex: 0),
+      ],
+    ),
+    GameCategory(
+      categoryTitle: 'أَصْوَاتُ الطَّبِيعَةِ',
+      englishTitle: 'Nature Sounds (10 Qs)',
+      audioFile: 'welcome.mp3',
+      emoji: '🍃',
+      imagePath: 'assets/images/card_songs.png',
+      color: Color(0xFF059669),
+      questions: [
+        GameQuestion(question: 'مَا صَوْتُ أَوْرَاقِ الشَّجَرِ؟', options: ['زَئِيرٌ 🦁', 'حَفِيفٌ 🍃', 'خَرِيرٌ 🌊'], correctIndex: 1),
+        GameQuestion(question: 'مَا صَوْتُ المَاءِ الجَارِي؟', options: ['طَنِينٌ 🐝', 'صَهِيلٌ 🐴', 'خَرِيرٌ 🌊'], correctIndex: 2),
+        GameQuestion(question: 'مَا صَوْتُ الأَسَدِ؟', options: ['زَئِيرٌ 🦁', 'مُوَاءٌ 🐱', 'هَدِيلٌ 🕊️'], correctIndex: 0),
+        GameQuestion(question: 'مَا صَوْتُ العُصْفُورِ؟', options: ['قَصْفٌ ⛈️', 'زَقْزَقَةٌ 🐦', 'صَفِيرٌ 🌬️'], correctIndex: 1),
+        GameQuestion(question: 'مَا صَوْتُ الرِّيَاحِ القَوِيَّةِ؟', options: ['صَفِيرٌ 🌬️', 'خَرِيرٌ 💧', 'حَفِيفٌ 🌿'], correctIndex: 0),
+        GameQuestion(question: 'مَا صَوْتُ النَّحْلَةِ؟', options: ['زَئِيرٌ 🦁', 'صَهِيلٌ 🐴', 'طَنِينٌ 🐝'], correctIndex: 2),
+        GameQuestion(question: 'مَا صَوْتُ الرَّعْدِ فِي السَّمَاءِ؟', options: ['هَدِيلٌ 🕊️', 'قَصْفٌ ⛈️', 'مُوَاءٌ 🐱'], correctIndex: 1),
+        GameQuestion(question: 'مَا صَوْتُ الحِصَانِ؟', options: ['صَهِيلٌ 🐴', 'زَقْزَقَةٌ 🐦', 'طَنِينٌ 🐝'], correctIndex: 0),
+        GameQuestion(question: 'مَا صَوْتُ القِطِّ الصَّغِيرِ؟', options: ['زَئِيرٌ 🦁', 'حَفِيفٌ 🍃', 'مُوَاءٌ 🐱'], correctIndex: 2),
+        GameQuestion(question: 'مَا صَوْتُ الحَمَامَةِ؟', options: ['قَصْفٌ ⛈️', 'هَدِيلٌ 🕊️', 'صَهِيلٌ 🐴'], correctIndex: 1),
+      ],
+    ),
+    GameCategory(
+      categoryTitle: 'الإِشَارَةُ وَالضَّمَائِرُ',
+      englishTitle: 'Demonstratives (10 Qs)',
+      audioFile: 'welcome.mp3',
+      emoji: '👉',
+      imagePath: 'assets/images/card_stories.png',
+      color: Color(0xFFD97706),
+      questions: [
+        GameQuestion(question: 'أَكْمِلْ: «..... وَلَدٌ مُهَذَّبٌ»', options: ['هَذَا 👦', 'هَذِهِ 👧', 'هَؤُلَاءِ 👫'], correctIndex: 0),
+        GameQuestion(question: 'أَكْمِلْ: «..... بِنْتٌ ذَكِيَّةٌ»', options: ['هَذَا 👦', 'هَذِهِ 👧', 'ذَلِكَ 🌙'], correctIndex: 1),
+        GameQuestion(question: 'أَكْمِلْ: «..... أَطْفَالٌ نَشِيطُونَ»', options: ['هَذَا 👦', 'تِلْكَ ☀️', 'هَؤُلَاءِ 👧👦'], correctIndex: 2),
+        GameQuestion(question: 'أَكْمِلْ: «..... قَمَرٌ مُنِيرٌ فِي السَّمَاءِ»', options: ['ذَلِكَ 🌙', 'تِلْكَ ☀️', 'هَذِهِ 🌸'], correctIndex: 0),
+        GameQuestion(question: 'أَكْمِلْ: «..... شَمْسٌ مُشْرِقَةٌ»', options: ['هَذَا 🌳', 'تِلْكَ ☀️', 'هَذَانِ 📚'], correctIndex: 1),
+        GameQuestion(question: 'أَكْمِلْ: «..... أُحِبُّ القِرَاءَةَ»', options: ['أَنَا 📖', 'نَحْنُ 🤝', 'هُمْ 👥'], correctIndex: 0),
+        GameQuestion(question: 'أَكْمِلْ: «..... نَتَعَاوَنُ فِي الخَيْرِ»', options: ['أَنَا 🙋', 'هِيَ 👧', 'نَحْنُ 🤝'], correctIndex: 2),
+        GameQuestion(question: 'أَكْمِلْ: «..... تِلْمِيذٌ مُجْتَهِدٌ»', options: ['هِيَ 👧', 'هُوَ 🎓', 'نَحْنُ 👫'], correctIndex: 1),
+        GameQuestion(question: 'أَكْمِلْ: «..... مُعَلِّمَةٌ رَائِعَةٌ»', options: ['هِيَ 👩‍🏫', 'هُوَ 👨‍🏫', 'أَنْتُمْ 👥'], correctIndex: 0),
+        GameQuestion(question: 'أَكْمِلْ: «..... كِتَابَانِ مُفِيدَانِ»', options: ['هَذِهِ 📖', 'هَؤُلَاءِ 👫', 'هَذَانِ 📚'], correctIndex: 2),
+      ],
+    ),
+    GameCategory(
+      categoryTitle: 'عَالَمُ الحَيَوَانِ',
+      englishTitle: 'Animal World (10 Qs)',
+      audioFile: 'welcome.mp3',
+      emoji: '🦁',
+      imagePath: 'assets/images/owl_mascot.png',
+      color: Color(0xFFEA580C),
+      questions: [
+        GameQuestion(question: 'مَا الحَيَوَانُ المُلَقَّبُ بِـ «سَفِينَةِ الصَّحْرَاءِ»؟', options: ['الحِصَانُ 🐴', 'الجَمَلُ 🐪', 'الأَرْنَبُ 🐰'], correctIndex: 1),
+        GameQuestion(question: 'مَا الطَّائِرُ الَّذِي يُضْرَبُ بِهِ المَثَلُ فِي الحِكْمَةِ؟', options: ['البُومَةُ 🦉', 'البَطَّةُ 🦆', 'الدِّيكُ 🐓'], correctIndex: 0),
+        GameQuestion(question: 'مَا الحَشَرَةُ النَّشِيطَةُ الَّتِي تَصْنَعُ العَسَلَ؟', options: ['النَّمْلَةُ 🐜', 'الفَرَاشَةُ 🦋', 'النَّحْلَةُ 🐝'], correctIndex: 2),
+        GameQuestion(question: 'مَا الحَيَوَانُ البَطِيءُ الَّذِي يَحْمِلُ بَيْتَهُ عَلَى ظَهْرِهِ؟', options: ['السُّلَحْفَاةُ 🐢', 'القُنْفُذُ 🦔', 'السِّنْجَابُ 🐿️'], correctIndex: 0),
+        GameQuestion(question: 'مَا أَطْوَلُ الحَيَوَانَاتِ رَقَبَةً؟', options: ['الغَزَالُ 🦌', 'الزَّرَافَةُ 🦒', 'الفِيلُ 🐘'], correctIndex: 1),
+        GameQuestion(question: 'مَا الحَيَوَانُ الضَّخْمُ ذُو الخُرْطُومِ الطَّوِيلِ؟', options: ['الدُّبُّ 🐻', 'الأَسَدُ 🦁', 'الفِيلُ 🐘'], correctIndex: 2),
+        GameQuestion(question: 'أَيْنَ تَعِيشُ الأَسْمَاكُ؟', options: ['فِي المَاءِ 🐟', 'فَوْقَ الشَّجَرِ 🌳', 'فِي الصَّحْرَاءِ 🏜️'], correctIndex: 0),
+        GameQuestion(question: 'مَا الحَيَوَانُ الَّذِي يُحِبُّ الجَزَرَ وَيَقْفِزُ بِسُرْعَةٍ؟', options: ['الثَّعْلَبُ 🦊', 'الأَرْنَبُ 🐰', 'القِطُّ 🐱'], correctIndex: 1),
+        GameQuestion(question: 'مَا الحَشَرَةُ المُلَوَّنَةُ الَّتِي تَطِيرُ فَوْقَ الأَزْهَارِ؟', options: ['الجَرَادَةُ 🦗', 'النَّمْلَةُ 🐜', 'الفَرَاشَةُ 🦋'], correctIndex: 2),
+        GameQuestion(question: 'مَا الحَيَوَانُ المُلَقَّبُ بِـ «مَلِكِ الغَابَةِ»؟', options: ['الأَسَدُ 🦁', 'الذِّئْبُ 🐺', 'القِرْدُ 🐒'], correctIndex: 0),
+      ],
+    ),
+    GameCategory(
+      categoryTitle: 'تَحَدِّي الفُصْحَى',
+      englishTitle: 'Classical Arabic (10 Qs)',
+      audioFile: 'welcome.mp3',
+      emoji: '🌟',
+      imagePath: 'assets/images/card_stories.png',
+      color: Color(0xFFF59E0B),
+      questions: [
+        GameQuestion(question: 'أَيُّ جُمْلَةٍ بِالعَرَبِيَّةِ الفُصْحَى؟', options: ['الولد راح بدري', 'ذَهَبَ الطِّفْلُ مُبَكِّراً 🌟', 'أيمتى رح نلعب؟'], correctIndex: 1),
+        GameQuestion(question: 'كَيْفَ نَقُولُ بِالفُصْحَى: «عايز أشرب ميه»؟', options: ['أُرِيدُ أَنْ أَشْرَبَ المَاءَ 💧', 'بدي اشرب مي', 'هات ميه بسرعة'], correctIndex: 0),
+        GameQuestion(question: 'كَيْفَ نَقُولُ بِالفُصْحَى: «الجو حلو النهارده»؟', options: ['الجو كويس دلوقتي', 'الدنيا حر أوي', 'الجَوُّ جَمِيلٌ اليَوْمَ ☀️'], correctIndex: 2),
+        GameQuestion(question: 'أَيُّ جُمْلَةٍ صَحِيحَةٌ بِالفُصْحَى؟', options: ['القِرَاءَةُ تُنِيرُ العَقْلَ 📖', 'القراية بتفتح المخ', 'اقرا الكتاب ده'], correctIndex: 0),
+        GameQuestion(question: 'كَيْفَ نُسَلِّمُ بِالعَرَبِيَّةِ الفُصْحَى؟', options: ['ازيك عامل ايه', 'السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللهِ 🕌', 'أهلا بيك'], correctIndex: 1),
+        GameQuestion(question: 'كَيْفَ نَقُولُ بِالفُصْحَى: «متشكر أوي»؟', options: ['جَزَاكَ اللهُ خَيْراً ✨', 'ميرسي خالص', 'تسلم ايدك'], correctIndex: 0),
+        GameQuestion(question: 'أَيُّ كَلِمَةٍ تَدُلُّ عَلَى الفُصْحَى؟', options: ['شباك', 'طاقة', 'نَافِذَةٌ 🪟'], correctIndex: 2),
+        GameQuestion(question: 'كَيْفَ نَقُولُ بِالفُصْحَى: «فين كتابي؟»', options: ['كتابى راح فين', 'أَيْنَ كِتَابِي؟ 📚', 'وين الكتاب'], correctIndex: 1),
+        GameQuestion(question: 'أَيُّ جُمْلَةٍ بِالفُصْحَى السَّلِيمَةِ؟', options: ['أُحِبُّ لُغَتِي العَرَبِيَّةَ ❤️', 'بحب العربي كتير', 'العربي حلو'], correctIndex: 0),
+        GameQuestion(question: 'كَيْفَ نَقُولُ بِالفُصْحَى: «يلا نلعب سوا»؟', options: ['تعالى نلعب', 'خلينا نلعب', 'هَيَّا نَلْعَبْ مَعاً 🎈'], correctIndex: 2),
+      ],
+    ),
+    GameCategory(
+      categoryTitle: 'الأَلْوَانُ وَالطَّبِيعَةُ',
+      englishTitle: 'Colors & Nature (10 Qs)',
+      audioFile: 'welcome.mp3',
+      emoji: '🌈',
+      imagePath: 'assets/images/card_songs.png',
+      color: Color(0xFF06B6D4),
+      questions: [
+        GameQuestion(question: 'مَا لَوْنُ السَّمَاءِ الصَّافِيَةِ؟', options: ['أَزْرَقُ 🔵', 'أَحْمَرُ 🔴', 'أَسْوَدُ ⚫'], correctIndex: 0),
+        GameQuestion(question: 'مَا لَوْنُ أَوْرَاقِ الشَّجَرِ فِي الرَّبِيعِ؟', options: ['بُنِّيٌّ 🟤', 'أَخْضَرُ 🟢', 'بَنَفْسَجِيٌّ 🟣'], correctIndex: 1),
+        GameQuestion(question: 'مَا لَوْنُ الشَّمْسِ المُشْرِقَةِ؟', options: ['أَزْرَقُ 🔵', 'رَمَادِيٌّ ⚪', 'أَصْفَرُ 🟡'], correctIndex: 2),
+        GameQuestion(question: 'مَا لَوْنُ الثَّلْجِ وَالحَلِيبِ؟', options: ['أَبْيَضُ ⚪', 'أَخْضَرُ 🟢', 'بُرْتُقَالِيٌّ 🟠'], correctIndex: 0),
+        GameQuestion(question: 'مَا لَوْنُ الفَرَاوِلَةِ وَالتُّفَّاحِ؟', options: ['أَزْرَقُ 🔵', 'أَحْمَرُ 🔴', 'أَسْوَدُ ⚫'], correctIndex: 1),
+        GameQuestion(question: 'مَا لَوْنُ البُرْتُقَالِ؟', options: ['أَخْضَرُ 🟢', 'أَزْرَقُ 🔵', 'بُرْتُقَالِيٌّ 🟠'], correctIndex: 2),
+        GameQuestion(question: 'كَمْ لَوْناً فِي قَوْسِ قُزَحَ؟', options: ['سَبْعَةُ أَلْوَانٍ 🌈', 'لَوْنَانِ فَقَطْ ✌️', 'عِشْرُونَ لَوْناً 🎨'], correctIndex: 0),
+        GameQuestion(question: 'مَا لَوْنُ الفَحْمِ وَاللَّيْلِ؟', options: ['أَبْيَضُ ⚪', 'أَسْوَدُ ⚫', 'أَصْفَرُ 🟡'], correctIndex: 1),
+        GameQuestion(question: 'مَا الفَصْلُ الَّذِي تَتَفَتَّحُ فِيهِ الأَزْهَارُ؟', options: ['فَصْلُ الشِّتَاءِ ❄️', 'فَصْلُ الخَرِيفِ 🍂', 'فَصْلُ الرَّبِيعِ 🌸'], correctIndex: 2),
+        GameQuestion(question: 'مَا الفَصْلُ الَّذِي يَنْزِلُ فِيهِ المَطَرُ وَالبَرْدُ؟', options: ['فَصْلُ الشِّتَاءِ 🌧️', 'فَصْلُ الصَّيْفِ ☀️', 'فَصْلُ الرَّبِيعِ 🌷'], correctIndex: 0),
+      ],
+    ),
+    GameCategory(
+      categoryTitle: 'الأَرْقَامُ وَالوَقْتُ',
+      englishTitle: 'Numbers & Time (10 Qs)',
+      audioFile: 'welcome.mp3',
+      emoji: '⏰',
+      imagePath: 'assets/images/owl_mascot.png',
+      color: Color(0xFF2563EB),
+      questions: [
+        GameQuestion(question: 'كَمْ عَدَدُ أَيَّامِ الأُسْبُوعِ؟', options: ['خَمْسَةُ أَيَّامٍ 5️⃣', 'سَبْعَةُ أَيَّامٍ 📅', 'عَشَرَةُ أَيَّامٍ 🔟'], correctIndex: 1),
+        GameQuestion(question: 'كَمْ عَدَدُ صَلَوَاتِ المُسْلِمِ فِي اليَوْمِ وَاللَّيْلَةِ؟', options: ['خَمْسُ صَلَوَاتٍ 🕌', 'ثَلَاثُ صَلَوَاتٍ 3️⃣', 'سَبْعُ صَلَوَاتٍ 7️⃣'], correctIndex: 0),
+        GameQuestion(question: 'مَا اليَوْمُ الَّذِي يَأْتِي بَعْدَ الخَمِيسِ؟', options: ['يَوْمُ الأَحَدِ 📆', 'يَوْمُ الثُّلَاثَاءِ 🗓️', 'يَوْمُ الجُمُعَةِ 🌟'], correctIndex: 2),
+        GameQuestion(question: 'كَمْ عَدَدُ أَصَابِعِ اليَدَيْنِ مَعاً؟', options: ['خَمْسَةُ أَصَابِعَ 🖐️', 'عَشَرَةُ أَصَابِعَ 🙌', 'ثَمَانِيَةُ أَصَابِعَ 8️⃣'], correctIndex: 1),
+        GameQuestion(question: 'مَتَى تُشْرِقُ الشَّمْسُ؟', options: ['فِي الصَّبَاحِ 🌅', 'فِي مُنْتَصَفِ اللَّيْلِ 🌃', 'عِنْدَ الفَجْرِ الكَاذِبِ 🌌'], correctIndex: 0),
+        GameQuestion(question: 'مَتَى يَظْهَرُ القَمَرُ وَالنُّجُومُ؟', options: ['فِي الظُّهْرِ ☀️', 'فِي الصَّبَاحِ البَاكِرِ 🌤️', 'فِي اللَّيْلِ 🌙'], correctIndex: 2),
+        GameQuestion(question: 'كَمْ شَهْراً فِي السَّنَةِ؟', options: ['سِتَّةُ أَشْهُرٍ 6️⃣', 'اثْنَا عَشَرَ شَهْراً 📆', 'عَشَرَةُ أَشْهُرٍ 🔟'], correctIndex: 1),
+        GameQuestion(question: 'مَا الرَّقْمُ الَّذِي يَأْتِي بَعْدَ التِّسْعَةِ؟', options: ['عَشَرَةٌ 🔟', 'ثَمَانِيَةٌ 8️⃣', 'سَبْعَةٌ 7️⃣'], correctIndex: 0),
+        GameQuestion(question: 'كَمْ عَدَدُ فُصُولِ السَّنَةِ؟', options: ['فَصْلَانِ اثْنَانِ 2️⃣', 'ثَلَاثَةُ فُصُولٍ 3️⃣', 'أَرْبَعَةُ فُصُولٍ 🍂'], correctIndex: 2),
+        GameQuestion(question: 'مَا الرَّقْمُ الَّذِي يَسْبِقُ الخَمْسَةَ مُبَاشَرَةً؟', options: ['سِتَّةٌ 6️⃣', 'أَرْبَعَةٌ 4️⃣', 'اثْنَانِ 2️⃣'], correctIndex: 1),
+      ],
+    ),
+    GameCategory(
+      categoryTitle: 'الآدَابُ وَالأَخْلَاقُ',
+      englishTitle: 'Good Manners (10 Qs)',
+      audioFile: 'welcome.mp3',
+      emoji: '🤲',
+      imagePath: 'assets/images/card_stories.png',
+      color: Color(0xFF10B981),
+      questions: [
+        GameQuestion(question: 'مَاذَا نَقُولُ قَبْلَ أَنْ نَأْكُلَ؟', options: ['بِسْمِ اللهِ الرَّحْمَنِ الرَّحِيمِ 🤲', 'الحَمْدُ لِلَّهِ ✨', 'مَعَ السَّلَامَةِ 👋'], correctIndex: 0),
+        GameQuestion(question: 'مَاذَا نَقُولُ بَعْدَ أَنْ نَنْتَهِيَ مِنَ الطَّعَامِ؟', options: ['بِسْمِ اللهِ 🍽️', 'الحَمْدُ لِلَّهِ ✨', 'صَبَاحُ الخَيْرِ ☀️'], correctIndex: 1),
+        GameQuestion(question: 'بِأَيِّ يَدٍ نَأْكُلُ وَنَشْرَبُ؟', options: ['بِاليَدِ اليُسْرَى 🤚', 'بِكِلْتَا اليَدَيْنِ 🙌', 'بِاليَدِ اليُمْنَى 🖐️'], correctIndex: 2),
+        GameQuestion(question: 'مَاذَا نَفْعَلُ إِذَا وَجَدْنَا شَيْئاً مَفْقُوداً؟', options: ['نَرُدُّهُ إِلَى صَاحِبِهِ بِأَمَانَةٍ 🎒', 'نَأْخُذُهُ لِأَنْفُسِنَا 🤫', 'نَتْرُكُهُ فِي الشَّارِعِ 🛣️'], correctIndex: 0),
+        GameQuestion(question: 'أَيْنَ نَضَعُ القُمَامَةَ وَالأَوْرَاقَ؟', options: ['عَلَى العُشْبِ الأَخْضَرِ 🌿', 'فِي سَلَّةِ المُهْمَلَاتِ 🗑️', 'فِي النَّهْرِ 🌊'], correctIndex: 1),
+        GameQuestion(question: 'مَاذَا نَقُولُ لِمَنْ قَدَّمَ لَنَا مُسَاعَدَةً؟', options: ['لَا شَيْءَ 🤐', 'وداعاً 👋', 'شُكْراً لَكَ، جَزَاكَ اللهُ خَيْراً ❤️'], correctIndex: 2),
+        GameQuestion(question: 'كَيْفَ نَتَحَدَّثُ مَعَ وَالِدَيْنَا وَمُعَلِّمِينَا؟', options: ['بِأَدَبٍ وَاحْتِرَامٍ وَصَوْتٍ هَادِئٍ 🌸', 'بِصَوْتٍ مُرْتَفِعٍ وَغَضَبٍ 📢', 'بِدُونِ انْتِبَاهٍ 🙈'], correctIndex: 0),
+        GameQuestion(question: 'مَاذَا نَفْعَلُ قَبْلَ تَنَاوُلِ الطَّعَامِ؟', options: ['نَلْعَبُ بِالتُّرَابِ 🏜️', 'نَغْسِلُ أَيْدِيَنَا بِالمَاءِ وَالصَّابُونِ 🧼', 'نَنَامُ قَلِيلاً 😴'], correctIndex: 1),
+        GameQuestion(question: 'مَاذَا نَقُولُ عِنْدَمَا نَعْطِسُ؟', options: ['بِسْمِ اللهِ 🤲', 'سُبْحَانَ اللهِ 🌟', 'الحَمْدُ لِلَّهِ 🤧'], correctIndex: 2),
+        GameQuestion(question: 'مَا ثَمَرَةُ الصِّدْقِ وَالأَمَانَةِ؟', options: ['مَحَبَّةُ اللهِ وَمَحَبَّةُ النَّاسِ 🏆', 'الغَضَبُ وَالحُزْنُ 😢', 'فُقْدَانُ الأَصْدِقَاءِ 💔'], correctIndex: 0),
+      ],
+    ),
   ];
 
   @override
@@ -993,8 +1204,14 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     return null;
   }
 
-  Future<List<VideoEpisodeItem>> _fetchFullPlaylistFromYouTube(String rawPlaylistId) async {
+  Future<List<VideoEpisodeItem>> _fetchFullPlaylistFromYouTube(
+    String rawPlaylistId, {
+    bool forceRefresh = false,
+  }) async {
     final String playlistId = _extractPlaylistId(rawPlaylistId);
+    if (forceRefresh) {
+      _playlistCache.remove(playlistId);
+    }
     if (_playlistCache.containsKey(playlistId) && _playlistCache[playlistId]!.isNotEmpty) {
       return _playlistCache[playlistId]!;
     }
@@ -1113,7 +1330,10 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         .replaceAll('&gt;', '>');
   }
 
-  Future<void> _openPlaylistSection({required bool isTafsir}) async {
+  Future<void> _openPlaylistSection({
+    required bool isTafsir,
+    bool forceRefresh = false,
+  }) async {
     await _player.stop();
     await _stopNatureAmbience();
     _pauseVideoIfAny();
@@ -1131,7 +1351,10 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
           : 'جَارِي تَحْمِيلُ قَائِمَةِ تِلَاوَةِ القُرْآنِ الكَرِيمِ...';
     });
 
-    final List<VideoEpisodeItem> episodes = await _fetchFullPlaylistFromYouTube(targetPlaylistId);
+    final List<VideoEpisodeItem> episodes = await _fetchFullPlaylistFromYouTube(
+      targetPlaylistId,
+      forceRefresh: forceRefresh,
+    );
     if (!mounted) return;
 
     if (episodes.isEmpty) {
@@ -1474,7 +1697,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                         _playlistCache.remove(extracted);
                       });
                       Navigator.of(ctx).pop();
-                      _openPlaylistSection(isTafsir: isTafsir);
+                      _openPlaylistSection(isTafsir: isTafsir, forceRefresh: true);
                     },
                     child: const Text('حِفْظٌ وَتَحْمِيلُ القَائِمَةِ', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
@@ -1586,7 +1809,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   bool get _canGoBackOneStep {
     if (_screenIndex == 1 && _selectedSongIndex != -1) return true;
     if (_screenIndex == 2 && _selectedBookIndex != -1) return true;
-    if (_screenIndex == 3 && _selectedQuizIndex != -1) return true;
+    if (_screenIndex == 3 && _selectedGameIndex != -1) return true;
     if ((_screenIndex == 4 || _screenIndex == 5) && _isVideoExpanded) return true;
     return false;
   }
@@ -1607,9 +1830,14 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
           _selectedBookIndex = -1;
           _owlBubble = 'اخْتَرْ قِصَّةً مِنَ المَكْتَبَةِ لِتَقْرَأَهَا فِي الكِتَابِ المُتَحَرِّكِ!';
         }
-      } else if (_screenIndex == 3 && _selectedQuizIndex != -1) {
-        _selectedQuizIndex = -1;
-        _owlBubble = 'اخْتَرْ لُعْبَةً مِنَ الأَلْعَابِ الدَّائِرِيَّةِ!';
+      } else if (_screenIndex == 3 && _selectedGameIndex != -1) {
+        _selectedGameIndex = -1;
+        _currentGameQuestionIndex = 0;
+        _selectedGameOptionIndex = null;
+        _gameCorrectCount = 0;
+        _currentQuestionScored = false;
+        _isGameCompleted = false;
+        _owlBubble = 'اخْتَرْ لُعْبَةً مِنَ الأَلْعَابِ العَشَرَةِ!';
       } else if ((_screenIndex == 4 || _screenIndex == 5) && _isVideoExpanded) {
         _isVideoExpanded = false;
       }
@@ -1700,7 +1928,10 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                     _selectedBookIndex = -1;
                     _isStoryQuizMode = false;
                     _storyQuizSelectedOption = null;
-                    _selectedQuizIndex = -1;
+                    _selectedGameIndex = -1;
+                    _currentGameQuestionIndex = 0;
+                    _selectedGameOptionIndex = null;
+                    _isGameCompleted = false;
                     _screenIndex = 0;
                     _owlBubble = 'أَهْلاً بِكَ فِي عَالَمِ فَصِيحٍ! اخْتَرْ أَيَّ أَيْقُونَةٍ دَائِرِيَّةٍ!';
                   });
@@ -1787,7 +2018,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   Widget _buildCurrentStage() {
     if (_screenIndex == 1) return _selectedSongIndex == -1 ? _buildSongsCircleHub() : _buildSingleSongPlayer(_songs[_selectedSongIndex]);
     if (_screenIndex == 2) return _selectedBookIndex == -1 ? _buildBooksCircleHub() : _buildInteractiveFlipBookViewer(_books[_selectedBookIndex]);
-    if (_screenIndex == 3) return _selectedQuizIndex == -1 ? _buildGamesCircleHub() : _buildSingleGameStage(_quizzes[_selectedQuizIndex]);
+    if (_screenIndex == 3) return _selectedGameIndex == -1 ? _buildGamesCircleHub() : _buildSingleGameStage(_games[_selectedGameIndex]);
     if (_screenIndex == 4) {
       return _buildLockedVideoWithLeftPlaylistStage(
         isTafsir: true,
@@ -1841,7 +2072,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
       child: Row(
         children: [
           Expanded(
-            flex: 68,
+            flex: 73,
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
@@ -1852,64 +2083,73 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
               child: Column(
                 children: [
                   Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        color: Colors.black,
-                        child: _isLoadingPlaylist
-                            ? const Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    CircularProgressIndicator(color: Color(0xFFFBBF24)),
-                                    SizedBox(height: 12),
-                                    Text(
-                                      'جَارِي جَلْبُ جَمِيعِ حَلَقَاتِ قَائِمَةِ التَّشْغِيلِ...',
-                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : _playlistLoadError != null
-                                ? Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(20),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.playlist_play_rounded, color: Color(0xFFFBBF24), size: 52),
-                                          const SizedBox(height: 10),
-                                          Text(
-                                            _playlistLoadError!,
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15, height: 1.6),
-                                          ),
-                                          const SizedBox(height: 14),
-                                          Wrap(
-                                            spacing: 10,
-                                            children: [
-                                              FilledButton.icon(
-                                                style: FilledButton.styleFrom(backgroundColor: accentColor),
-                                                onPressed: () => _openPlaylistSection(isTafsir: isTafsir),
-                                                icon: const Icon(Icons.refresh_rounded),
-                                                label: const Text('إِعَادَةُ المُحَاوَلَةِ', style: TextStyle(fontWeight: FontWeight.bold)),
-                                              ),
-                                              FilledButton.icon(
-                                                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
-                                                onPressed: () => _showTeacherPlaylistDialog(isTafsir: isTafsir),
-                                                icon: const Icon(Icons.lock_open_rounded),
-                                                label: const Text('إِدْخَالُ رَابِطِ القَائِمَةِ 🔒', style: TextStyle(fontWeight: FontWeight.bold)),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  )
-                                : (_hasActiveVideo && _webController != null)
-                                    ? WebViewWidget(controller: _webController!)
-                                    : const SizedBox.shrink(),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(14),
                       ),
+                      child: _isLoadingPlaylist
+                          ? const Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircularProgressIndicator(color: Color(0xFFFBBF24)),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'جَارِي جَلْبُ جَمِيعِ حَلَقَاتِ قَائِمَةِ التَّشْغِيلِ...',
+                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : _playlistLoadError != null
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.playlist_play_rounded, color: Color(0xFFFBBF24), size: 52),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          _playlistLoadError!,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15, height: 1.6),
+                                        ),
+                                        const SizedBox(height: 14),
+                                        Wrap(
+                                          spacing: 10,
+                                          children: [
+                                            FilledButton.icon(
+                                              style: FilledButton.styleFrom(backgroundColor: accentColor),
+                                              onPressed: () => _openPlaylistSection(isTafsir: isTafsir, forceRefresh: true),
+                                              icon: const Icon(Icons.refresh_rounded),
+                                              label: const Text('إِعَادَةُ المُحَاوَلَةِ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                            ),
+                                            FilledButton.icon(
+                                              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
+                                              onPressed: () => _showTeacherPlaylistDialog(isTafsir: isTafsir),
+                                              icon: const Icon(Icons.lock_open_rounded),
+                                              label: const Text('إِدْخَالُ رَابِطِ القَائِمَةِ 🔒', style: TextStyle(fontWeight: FontWeight.bold)),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : (_hasActiveVideo && _webController != null)
+                                  ? Center(
+                                      child: AspectRatio(
+                                        aspectRatio: 16 / 9,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: WebViewWidget(controller: _webController!),
+                                        ),
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -1982,9 +2222,9 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
           if (!_isVideoExpanded) const SizedBox(width: 8),
           if (!_isVideoExpanded)
             Expanded(
-              flex: 32,
+              flex: 27,
               child: Container(
-                padding: const EdgeInsets.all(9),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.white.withAlpha(246),
                   borderRadius: BorderRadius.circular(20),
@@ -1999,19 +2239,32 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                             '$sectionTitle (${episodes.length})',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: accentColor),
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: accentColor),
                           ),
                         ),
                         InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () => _showTeacherPlaylistDialog(isTafsir: isTafsir),
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => _openPlaylistSection(isTafsir: isTafsir, forceRefresh: true),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
                               color: accentColor.withAlpha(28),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Icon(Icons.lock_outline_rounded, size: 18, color: accentColor),
+                            child: Icon(Icons.refresh_rounded, size: 17, color: accentColor),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => _showTeacherPlaylistDialog(isTafsir: isTafsir),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: accentColor.withAlpha(28),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.lock_outline_rounded, size: 17, color: accentColor),
                           ),
                         ),
                       ],
@@ -2034,33 +2287,33 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                                     final VideoEpisodeItem ep = episodes[index];
                                     final bool isSelected = index == selectedIndex;
                                     return Padding(
-                                      padding: const EdgeInsets.only(bottom: 7),
+                                      padding: const EdgeInsets.only(bottom: 6),
                                       child: Material(
                                         color: isSelected ? accentColor : const Color(0xFFF1F5F9),
-                                        borderRadius: BorderRadius.circular(14),
+                                        borderRadius: BorderRadius.circular(13),
                                         child: InkWell(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(13),
                                           onTap: () => onSelect(index),
                                           child: Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                             child: Row(
                                               children: [
                                                 Container(
-                                                  width: 28,
-                                                  height: 28,
+                                                  width: 26,
+                                                  height: 26,
                                                   alignment: Alignment.center,
                                                   decoration: BoxDecoration(
                                                     shape: BoxShape.circle,
                                                     color: isSelected ? Colors.white : accentColor.withAlpha(35),
                                                   ),
                                                   child: isSelected
-                                                      ? Icon(Icons.play_arrow_rounded, size: 18, color: accentColor)
+                                                      ? Icon(Icons.play_arrow_rounded, size: 17, color: accentColor)
                                                       : Text(
                                                           '${index + 1}',
-                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: accentColor),
+                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: accentColor),
                                                         ),
                                                 ),
-                                                const SizedBox(width: 8),
+                                                const SizedBox(width: 7),
                                                 Expanded(
                                                   child: Text(
                                                     ep.title,
@@ -2068,8 +2321,8 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                                                     overflow: TextOverflow.ellipsis,
                                                     style: TextStyle(
                                                       fontWeight: FontWeight.bold,
-                                                      fontSize: 13.5,
-                                                      height: 1.35,
+                                                      fontSize: 13,
+                                                      height: 1.3,
                                                       color: isSelected ? Colors.white : const Color(0xFF0F172A),
                                                     ),
                                                   ),
@@ -2140,7 +2393,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
             const SizedBox(width: 14),
             _buildCircularIconPortal(
               label: '🎮 الأَلْعَابُ',
-              subLabel: 'Fun Challenges',
+              subLabel: '10 Games • 100 Qs',
               imagePath: 'assets/images/owl_mascot.png',
               ringColor: const Color(0xFFF59E0B),
               badgeBg: const Color(0xFFFFFBEB),
@@ -2150,8 +2403,11 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                 setState(() {
                   _isPlaying = false;
                   _screenIndex = 3;
-                  _selectedQuizIndex = -1;
-                  _owlBubble = '👏 اخْتَرْ لُعْبَةً مِنَ التَّحَدِّيَاتِ الثَّلَاثَةِ!';
+                  _selectedGameIndex = -1;
+                  _currentGameQuestionIndex = 0;
+                  _selectedGameOptionIndex = null;
+                  _isGameCompleted = false;
+                  _owlBubble = '👏 اخْتَرْ لُعْبَةً مِنَ الأَلْعَابِ العَشَرَةِ المُمْتِعَةِ!';
                 });
               },
             ),
@@ -2205,19 +2461,29 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
             ),
             child: ClipOval(child: Image.asset(imagePath, fit: BoxFit.cover)),
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
               color: badgeBg,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: ringColor, width: 3),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: ringColor, width: 2.5),
               boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 4))],
             ),
             child: Column(
               children: [
-                Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ringColor)),
-                Text(subLabel, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: circleSize < 115 ? 14 : 16, fontWeight: FontWeight.bold, color: ringColor),
+                ),
+                Text(
+                  subLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                ),
               ],
             ),
           ),
@@ -2844,73 +3110,323 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   }
 
   Widget _buildGamesCircleHub() {
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(_quizzes.length, (int i) {
-          final QuizItem q = _quizzes[i];
-          return _buildCircularIconPortal(
-            circleSize: 155,
-            label: '${q.emoji} ${q.categoryTitle}',
-            subLabel: q.englishTitle,
-            imagePath: q.imagePath,
-            ringColor: q.color,
-            badgeBg: Colors.white,
-            onTap: () {
-              setState(() => _selectedQuizIndex = i);
-              _playAudioTrack(q.audioFile, 'أَجِبْ عَنِ السُّؤَالِ التَّالِي لِتَرْبَحَ 10 نُجُومٍ!');
-            },
-          );
-        }),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+      child: Center(
+        child: GridView.builder(
+          shrinkWrap: true,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.05,
+          ),
+          itemCount: _games.length,
+          itemBuilder: (BuildContext context, int i) {
+            final GameCategory g = _games[i];
+            return Center(
+              child: _buildCircularIconPortal(
+                circleSize: 102,
+                label: '${g.emoji} ${g.categoryTitle}',
+                subLabel: '١٠ أَسْئِلَةٍ مُمْتِعَةٍ',
+                imagePath: g.imagePath,
+                ringColor: g.color,
+                badgeBg: Colors.white,
+                onTap: () {
+                  setState(() {
+                    _selectedGameIndex = i;
+                    _currentGameQuestionIndex = 0;
+                    _selectedGameOptionIndex = null;
+                    _gameCorrectCount = 0;
+                    _currentQuestionScored = false;
+                    _isGameCompleted = false;
+                  });
+                  _playAudioTrack(g.audioFile, 'أَجِبْ عَنِ الأَسْئِلَةِ العَشَرَةِ لِتَرْبَحَ النُّجُومَ!');
+                },
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildSingleGameStage(QuizItem q) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(40, 10, 40, 18),
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(color: Colors.white.withAlpha(248), borderRadius: BorderRadius.circular(32), border: Border.all(color: q.color, width: 5)),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 4,
-              child: Column(
+  Widget _buildSingleGameStage(GameCategory game) {
+    if (_isGameCompleted) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(48, 12, 48, 20),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withAlpha(250),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: game.color, width: 5),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('🏆🎉🌟', style: TextStyle(fontSize: 62)),
+              const SizedBox(height: 10),
+              Text(
+                'أَحْسَنْتَ يَا بَطَلُ! أَكْمَلْتَ لُعْبَةَ: ${game.categoryTitle}',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: game.color),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFF59E0B), width: 2.5),
+                ),
+                child: Text(
+                  'نَتِيجَتُكَ: $_gameCorrectCount مِنْ ${game.questions.length} إِجَابَاتٍ صَحِيحَةٍ (+25 ⭐)',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(q.emoji, style: const TextStyle(fontSize: 64)),
-                  const SizedBox(height: 10),
-                  Text(q.categoryTitle, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: q.color)),
-                  Text(q.englishTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                  const SizedBox(height: 14),
-                  Text(q.question, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 23, color: Color(0xFF0F172A))),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF0284C7),
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _currentGameQuestionIndex = 0;
+                        _selectedGameOptionIndex = null;
+                        _gameCorrectCount = 0;
+                        _currentQuestionScored = false;
+                        _isGameCompleted = false;
+                        _owlBubble = 'هَيَّا نَلْعَبُ ${game.categoryTitle} مَرَّةً أُخْرَى!';
+                      });
+                    },
+                    icon: const Icon(Icons.refresh_rounded, size: 24),
+                    label: const Text('إِعَادَةُ اللُّعْبَةِ 🔄', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 16),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _selectedGameIndex = -1;
+                        _currentGameQuestionIndex = 0;
+                        _selectedGameOptionIndex = null;
+                        _isGameCompleted = false;
+                        _owlBubble = 'اخْتَرْ لُعْبَةً أُخْرَى مِنَ الأَلْعَابِ العَشَرَةِ!';
+                      });
+                    },
+                    icon: const Icon(Icons.grid_view_rounded, size: 24),
+                    label: const Text('اخْتِيَارُ لُعْبَةٍ أُخْرَى 🎮', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
                 ],
               ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final GameQuestion q = game.questions[_currentGameQuestionIndex];
+    final bool isLastQ = _currentGameQuestionIndex == game.questions.length - 1;
+    final bool hasAnsweredCorrectly = _selectedGameOptionIndex == q.correctIndex;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 8, 32, 14),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white.withAlpha(248),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: game.color, width: 4.5),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: game.color,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Text(
+                    '${game.emoji} ${game.categoryTitle}',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: (_currentGameQuestionIndex + 1) / game.questions.length,
+                      minHeight: 12,
+                      backgroundColor: game.color.withAlpha(35),
+                      valueColor: AlwaysStoppedAnimation<Color>(game.color),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFF59E0B), width: 2),
+                  ),
+                  child: Text(
+                    'السُّؤَالُ ${_currentGameQuestionIndex + 1} مِنْ ${game.questions.length}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: Color(0xFF92400E)),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 10),
             Expanded(
-              flex: 5,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(q.options.length, (int optIdx) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE0F2FE), foregroundColor: const Color(0xFF0369A1), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
-                        onPressed: () {
-                          if (optIdx == q.correctIndex) {
-                            _playAudioTrack('bravo.mp3', '👏 أَحْسَنْتَ يَا بَطَلَ الفُصْحَى! +10 نُجُومٍ!', bonusStars: 10);
-                          } else {
-                            _playAudioTrack('try_again.mp3', 'لَا بَأْسَ يَا صَدِيقِي! حَاوِلْ مَرَّةً أُخْرَى!');
-                          }
-                        },
-                        child: Text(q.options[optIdx], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 42,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: game.color.withAlpha(20),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: game.color.withAlpha(110), width: 2.5),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(game.emoji, style: const TextStyle(fontSize: 54)),
+                          const SizedBox(height: 12),
+                          Text(
+                            q.question,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                              height: 1.5,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                }),
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    flex: 58,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ...List.generate(q.options.length, (int optIdx) {
+                          final bool isSelected = _selectedGameOptionIndex == optIdx;
+                          final bool isCorrect = optIdx == q.correctIndex;
+                          Color bgColor = const Color(0xFFE0F2FE);
+                          Color fgColor = const Color(0xFF0369A1);
+
+                          if (isSelected) {
+                            if (isCorrect) {
+                              bgColor = const Color(0xFF10B981);
+                              fgColor = Colors.white;
+                            } else {
+                              bgColor = const Color(0xFFEF4444);
+                              fgColor = Colors.white;
+                            }
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: bgColor,
+                                  foregroundColor: fgColor,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedGameOptionIndex = optIdx;
+                                  });
+                                  if (isCorrect) {
+                                    final int bonus = _currentQuestionScored ? 0 : 10;
+                                    if (!_currentQuestionScored) {
+                                      setState(() {
+                                        _currentQuestionScored = true;
+                                        _gameCorrectCount += 1;
+                                      });
+                                    }
+                                    _playAudioTrack(
+                                      'bravo.mp3',
+                                      '👏 أَحْسَنْتَ يَا بَطَلَ الفُصْحَى! +10 نُجُومٍ!',
+                                      bonusStars: bonus,
+                                    );
+                                  } else {
+                                    _playAudioTrack(
+                                      'try_again.mp3',
+                                      'لَا بَأْسَ يَا صَدِيقِي! حَاوِلْ مَرَّةً أُخْرَى!',
+                                    );
+                                  }
+                                },
+                                child: Text(
+                                  q.options[optIdx],
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19.5),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                        if (hasAnsweredCorrectly) ...[
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFFF59E0B),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              ),
+                              onPressed: () {
+                                if (!isLastQ) {
+                                  setState(() {
+                                    _currentGameQuestionIndex += 1;
+                                    _selectedGameOptionIndex = null;
+                                    _currentQuestionScored = false;
+                                    _owlBubble = 'السُّؤَالُ ${_currentGameQuestionIndex + 1} مِنْ ${game.questions.length}!';
+                                  });
+                                } else {
+                                  setState(() {
+                                    _isGameCompleted = true;
+                                    _stars += 25;
+                                    _owlBubble = '🏆 مَبْرُوكٌ! أَكْمَلْتَ جَمِيعَ أَسْئِلَةِ ${game.categoryTitle}!';
+                                  });
+                                }
+                              },
+                              icon: Icon(isLastQ ? Icons.emoji_events_rounded : Icons.arrow_back_rounded, size: 22),
+                              label: Text(
+                                isLastQ ? 'عَرْضُ النَّتِيجَةِ النِّهَائِيَّةِ (+25 ⭐)' : 'السُّؤَالُ التَّالِي ⬅️',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
