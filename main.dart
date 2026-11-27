@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -152,7 +153,6 @@ class FaseehHomeScreen extends StatefulWidget {
 
 class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     with TickerProviderStateMixin {
-  // ضعي هنا معرّف قائمة التفسير الكامل (34 حرفاً تبدأ بـ PL) أو الصقيه من داخل التطبيق عبر زر القفل
   String _tafsirPlaylistId = 'PLdddiW8jFqWs';
   String _recitationPlaylistId = 'PLAlCUgIGlphRU9Qc1IbmubwpYzyckh_ol';
 
@@ -942,7 +942,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     final List<VideoEpisodeItem> collected = [];
     final Set<String> seenIds = {};
 
-    // 1) الجلب من صفحة قائمة التشغيل الكاملة (يدعم أكثر من 15 فيديو ويحافظ على الترتيب)
     try {
       final HttpClient client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
       final HttpClientRequest req = await client.getUrl(
@@ -966,7 +965,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
       client.close(force: true);
     } catch (_) {}
 
-    // 2) مسار احتياطي عبر خلاصة XML الرسمية لقوائم التشغيل
     if (collected.isEmpty) {
       try {
         final HttpClient client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
@@ -1107,16 +1105,55 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
     html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
-    #player { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-    #shield { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 9999; background: transparent; }
+    #player { position: fixed; inset: 0; width: 100%; height: 100%; }
+    #topShield { position: fixed; top: 0; left: 0; right: 0; height: 68px; z-index: 9998; background: transparent; }
+    #bottomRightShield { position: fixed; bottom: 0; right: 0; width: 170px; height: 58px; z-index: 9998; background: transparent; }
+    #tapOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.42);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    #tapBtn {
+      background: #10B981;
+      color: #ffffff;
+      border: 4px solid #ffffff;
+      border-radius: 50px;
+      padding: 16px 32px;
+      font-size: 22px;
+      font-weight: bold;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
   </style>
 </head>
 <body>
   <div id="player"></div>
-  <div id="shield"></div>
+  <div id="topShield"></div>
+  <div id="bottomRightShield"></div>
+  <div id="tapOverlay" onclick="handleManualTap()">
+    <div id="tapBtn"><span>▶</span><span>اضْغَطْ هُنَا لِتَشْغِيلِ الفِيدْيُو</span></div>
+  </div>
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
     var ytPlayer;
+    function showTapOverlay(visible) {
+      var el = document.getElementById('tapOverlay');
+      if (el) el.style.display = visible ? 'flex' : 'none';
+    }
+    function handleManualTap() {
+      if (ytPlayer && ytPlayer.playVideo) {
+        try { ytPlayer.unMute(); ytPlayer.setVolume(100); } catch (err) {}
+        ytPlayer.playVideo();
+      }
+      showTapOverlay(false);
+    }
     function onYouTubeIframeAPIReady() {
       ytPlayer = new YT.Player('player', {
         videoId: '$videoId',
@@ -1135,14 +1172,26 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
         },
         events: {
           onReady: function(e) {
+            try { e.target.unMute(); e.target.setVolume(100); } catch (err) {}
             e.target.playVideo();
             if (window.FaseehBridge) window.FaseehBridge.postMessage('READY');
+            setTimeout(function() {
+              if (ytPlayer && ytPlayer.getPlayerState && ytPlayer.getPlayerState() !== 1) {
+                showTapOverlay(true);
+              }
+            }, 1300);
           },
           onStateChange: function(e) {
-            if (!window.FaseehBridge) return;
-            if (e.data === 1) window.FaseehBridge.postMessage('PLAYING');
-            if (e.data === 2) window.FaseehBridge.postMessage('PAUSED');
-            if (e.data === 0) window.FaseehBridge.postMessage('ENDED');
+            if (e.data === 1) {
+              showTapOverlay(false);
+              if (window.FaseehBridge) window.FaseehBridge.postMessage('PLAYING');
+            } else if (e.data === 2) {
+              showTapOverlay(true);
+              if (window.FaseehBridge) window.FaseehBridge.postMessage('PAUSED');
+            } else if (e.data === 0) {
+              showTapOverlay(true);
+              if (window.FaseehBridge) window.FaseehBridge.postMessage('ENDED');
+            }
           },
           onError: function(e) {
             if (window.FaseehBridge) window.FaseehBridge.postMessage('ERROR_' + e.data);
@@ -1153,12 +1202,13 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
     function togglePlayPause() {
       if (!ytPlayer || !ytPlayer.getPlayerState) return;
       var st = ytPlayer.getPlayerState();
-      if (st === 1) { ytPlayer.pauseVideo(); } else { ytPlayer.playVideo(); }
-    }
-    function seekBy(sec) {
-      if (!ytPlayer || !ytPlayer.getCurrentTime) return;
-      var cur = ytPlayer.getCurrentTime() || 0;
-      ytPlayer.seekTo(Math.max(0, cur + sec), true);
+      if (st === 1) {
+        ytPlayer.pauseVideo();
+      } else {
+        try { ytPlayer.unMute(); ytPlayer.setVolume(100); } catch (err) {}
+        ytPlayer.playVideo();
+        showTapOverlay(false);
+      }
     }
   </script>
 </body>
@@ -1168,7 +1218,14 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
 
   void _playSingleLockedVideo(VideoEpisodeItem episode) {
     if (_webController == null) {
-      final WebViewController ctrl = WebViewController()
+      late final PlatformWebViewControllerCreationParams params;
+      if (WebViewPlatform.instance is AndroidWebViewPlatform) {
+        params = AndroidWebViewControllerCreationParams();
+      } else {
+        params = const PlatformWebViewControllerCreationParams();
+      }
+
+      final WebViewController ctrl = WebViewController.fromPlatformCreationParams(params)
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(const Color(0xFF000000))
         ..setUserAgent(
@@ -1179,7 +1236,7 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
           onMessageReceived: (JavaScriptMessage msg) {
             if (!mounted) return;
             final String m = msg.message;
-            if (m == 'PLAYING' || m == 'READY') {
+            if (m == 'PLAYING') {
               setState(() => _isVideoPlaying = true);
             } else if (m == 'PAUSED') {
               setState(() => _isVideoPlaying = false);
@@ -1202,11 +1259,16 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                   u == 'about:blank') {
                 return NavigationDecision.navigate;
               }
-              // منع فتح تطبيق يوتيوب أو أي رابط خارجي للطفل نهائياً
               return NavigationDecision.prevent;
             },
           ),
         );
+
+      if (ctrl.platform is AndroidWebViewController) {
+        (ctrl.platform as AndroidWebViewController)
+            .setMediaPlaybackRequiresUserGesture(false);
+      }
+
       _webController = ctrl;
     }
 
@@ -1689,7 +1751,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
       padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
       child: Row(
         children: [
-          // اليمين (في اتجاه RTL): شاشة الفيديو المغلقة ضد فتح يوتيوب + أزرار التحكم الخاصة بالتطبيق
           Expanded(
             flex: 68,
             child: Container(
@@ -1763,7 +1824,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // شريط تحكم آمن للطفل أسفل الفيديو (يمنع الحاجة لأي أزرار من يوتيوب)
                   Row(
                     children: [
                       Expanded(
@@ -1817,7 +1877,6 @@ class _FaseehHomeScreenState extends State<FaseehHomeScreen>
               ),
             ),
           ),
-          // اليسار (في اتجاه RTL): قائمة التشغيل الكاملة بجميع حلقاتها على يسار الشاشة
           if (!_isVideoExpanded) const SizedBox(width: 10),
           if (!_isVideoExpanded)
             Expanded(
